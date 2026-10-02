@@ -1,0 +1,2414 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adivinhe o Jogador de Basquete - NBA Quiz</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        nba: {
+                            orange: '#ff6b00',
+                            darkOrange: '#d95200',
+                            blue: '#1d4ed8',
+                            dark: '#0a0e17',
+                            card: '#121927',
+                            border: '#1f293d',
+                            accent: '#8b5cf6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0e17;
+            color: #f3f4f6;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(255, 107, 0, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+        }
+
+        .glow-orange {
+            box-shadow: 0 0 20px rgba(255, 107, 0, 0.25);
+        }
+
+        .glow-orange-lg {
+            box-shadow: 0 0 35px rgba(255, 107, 0, 0.4);
+        }
+
+        .court-pattern {
+            background-image: radial-gradient(#1f293d 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .glass-card {
+            background: rgba(18, 25, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0e17;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f293d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff6b00;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
+        }
+
+        .pulse-active {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+
+        .shake-err {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        #canvas-confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 99;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-100 court-pattern selection:bg-nba-orange selection:text-white">
+
+    <!-- Confetti Overlay Canvas -->
+    <canvas id="canvas-confetti"></canvas>
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-nba-dark/90 backdrop-blur-md">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="resetToHome()">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-nba-orange to-amber-400 flex items-center justify-center shadow-lg shadow-nba-orange/20">
+                    <i class="fa-solid fa-basketball text-slate-950 text-xl animate-spin-slow"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-nba-orange bg-clip-text text-transparent">
+                        NBA Quiz
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">Adivinhe o Jogador</p>
+                </div>
+            </div>
+
+            <!-- Stats Header Pills -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl">
+                    <i class="fa-solid fa-trophy text-amber-400 text-sm"></i>
+                    <div class="text-xs">
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Pontos</span>
+                        <span id="score-display" class="font-extrabold text-amber-400 text-sm">0</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl">
+                    <i class="fa-solid fa-fire text-nba-orange text-sm"></i>
+                    <div class="text-xs">
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Sequência</span>
+                        <span id="streak-display" class="font-extrabold text-nba-orange text-sm">0</span>
+                    </div>
+                </div>
+
+                <button onclick="toggleCollectionModal()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold transition border border-slate-700/60 shadow-sm">
+                    <i class="fa-solid fa-book-open text-nba-orange"></i>
+                    <span class="hidden sm:inline">Coleção</span>
+                    <span id="collection-badge" class="bg-nba-orange/20 text-nba-orange px-1.5 py-0.5 rounded-md text-[11px] font-bold">0/100</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-6 flex flex-col gap-6">
+        
+        <!-- Game Status & Score Stepper Banner -->
+        <section class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-xl flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                <div>
+                    <span class="text-xs font-bold text-nba-orange tracking-widest uppercase flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-play"></i> Rodada <span id="round-number">1</span>
+                    </span>
+                    <h2 class="text-lg sm:text-xl font-extrabold text-white">Quem é este jogador mistério?</h2>
+                </div>
+                
+                <div class="flex items-center gap-2 bg-slate-900/80 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-semibold">
+                    <span class="text-slate-400">Valendo nesta dica:</span>
+                    <span id="current-points-value" class="text-emerald-400 font-bold text-sm">500 pts</span>
+                </div>
+            </div>
+
+            <!-- 5 Steps Indicator -->
+            <div>
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+                    <span>Progresso das Dicas</span>
+                    <span id="hints-unlocked-text">1 de 5 Dicas Liberadas</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2">
+                    <div id="step-1" class="h-2.5 rounded-full bg-nba-orange transition-all duration-500 shadow-sm shadow-nba-orange/50"></div>
+                    <div id="step-2" class="h-2.5 rounded-full bg-slate-800 transition-all duration-500"></div>
+                    <div id="step-3" class="h-2.5 rounded-full bg-slate-800 transition-all duration-500"></div>
+                    <div id="step-4" class="h-2.5 rounded-full bg-slate-800 transition-all duration-500"></div>
+                    <div id="step-5" class="h-2.5 rounded-full bg-slate-800 transition-all duration-500"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Hints Cards Container -->
+        <section id="hints-container" class="flex flex-col gap-3">
+            <!-- Hint Cards 1 to 5 will be dynamically populated/updated -->
+        </section>
+
+        <!-- Search Input & Interaction Box -->
+        <section class="glass-card rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-xl relative">
+            <label for="player-search-input" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                <i class="fa-solid fa-magnifying-glass text-nba-orange mr-1"></i> Digite o nome do jogador:
+            </label>
+            
+            <div class="relative">
+                <div class="relative flex items-center">
+                    <input 
+                        type="text" 
+                        id="player-search-input" 
+                        autocomplete="off"
+                        placeholder="Ex: LeBron James, Stephen Curry, Jokic..." 
+                        class="w-full bg-slate-900/90 border-2 border-slate-700/80 focus:border-nba-orange rounded-xl px-4 py-3.5 pr-10 text-slate-100 placeholder-slate-500 font-semibold focus:outline-none transition shadow-inner"
+                    >
+                    <button id="clear-input-btn" class="hidden absolute right-3 text-slate-400 hover:text-white p-1" onclick="clearSearchInput()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Autocomplete Dropdown List -->
+                <div id="autocomplete-list" class="hidden absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto divide-y divide-slate-800/60">
+                    <!-- Dynamic Autocomplete Results -->
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mt-4 pt-2">
+                <div class="flex items-center gap-2">
+                    <button onclick="revealNextHint()" id="next-hint-btn" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-lightbulb"></i>
+                        <span>Revelar Próxima Dica (-100 pts)</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="giveUpRound()" class="bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 font-semibold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition">
+                        <i class="fa-solid fa-flag mr-1"></i> Desistir
+                    </button>
+                    <button onclick="submitGuess()" class="bg-gradient-to-r from-nba-orange to-amber-500 hover:from-nba-darkOrange hover:to-amber-600 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg shadow-nba-orange/20 flex items-center gap-2">
+                        <span>CONFIRMAR CHUTE</span>
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Result Modal (Victory or Defeat) -->
+    <div id="result-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-card max-w-md w-full rounded-2xl border border-slate-700/80 p-6 shadow-2xl relative flex flex-col items-center text-center animate-bounce-short">
+            
+            <div id="modal-badge-container" class="w-16 h-16 rounded-full flex items-center justify-center text-2xl mb-3 shadow-lg">
+                <!-- Icon inserted via JS -->
+            </div>
+
+            <h3 id="modal-title" class="text-2xl font-black text-white mb-1"></h3>
+            <p id="modal-subtitle" class="text-sm font-medium text-slate-300 mb-4"></p>
+
+            <!-- Player Reveal Card -->
+            <div class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-4 mb-5 text-left flex flex-col gap-2">
+                <div class="flex items-center gap-3 border-b border-slate-800 pb-3">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-nba-orange to-purple-600 flex items-center justify-center text-white text-xl font-black shadow-md">
+                        <i class="fa-solid fa-user-ninja"></i>
+                    </div>
+                    <div>
+                        <h4 id="player-reveal-name" class="text-lg font-black text-amber-400"></h4>
+                        <p id="player-reveal-team" class="text-xs text-slate-300 font-semibold"></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                    <div>
+                        <span class="text-slate-500 block">Posição:</span>
+                        <span id="player-reveal-position" class="font-bold text-slate-200"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block">Pontos Ganhos:</span>
+                        <span id="player-reveal-points" class="font-bold text-emerald-400"></span>
+                    </div>
+                </div>
+
+                <div class="text-xs border-t border-slate-800/80 pt-2 mt-1">
+                    <span class="text-slate-500 block">Conquistas & Títulos:</span>
+                    <p id="player-reveal-titles" class="font-medium text-slate-300 italic"></p>
+                </div>
+            </div>
+
+            <button onclick="startNextRound()" class="w-full bg-gradient-to-r from-nba-orange to-amber-500 hover:from-nba-darkOrange hover:to-amber-600 text-slate-950 font-black py-3 rounded-xl transition shadow-lg shadow-nba-orange/20 text-sm flex items-center justify-center gap-2">
+                <span>PRÓXIMA RODADA</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Collection / Discovered Players Modal -->
+    <div id="collection-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="glass-card max-w-3xl w-full h-[85vh] rounded-2xl border border-slate-700/80 p-5 shadow-2xl flex flex-col">
+            
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div>
+                    <h3 class="text-xl font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-400"></i> Coleção de Jogadores NBA
+                    </h3>
+                    <p class="text-xs text-slate-400">Acompanhe todos os 100 jogadores que você já descobriu.</p>
+                </div>
+                <button onclick="toggleCollectionModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Collection Stats Bar & Filter Search -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 py-3 border-b border-slate-800/60">
+                <div class="text-xs text-slate-300 font-semibold">
+                    Desbloqueados: <span id="collection-count" class="text-nba-orange font-bold">0</span> de 100
+                </div>
+                <input 
+                    type="text" 
+                    id="collection-search" 
+                    oninput="filterCollection()" 
+                    placeholder="Filtrar coleção por nome ou time..." 
+                    class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-nba-orange"
+                >
+            </div>
+
+            <!-- Grid of 100 Players -->
+            <div id="collection-grid" class="flex-grow overflow-y-auto py-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pr-1">
+                <!-- Dynamically filled JS cards -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-800 flex justify-end">
+                <button onclick="toggleCollectionModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition">
+                    Fechar Coleção
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PLAYERS_DATABASE = [
+            {
+                id: 1,
+                name: "LeBron James",
+                aliases: ["king james", "lebron", "bron"],
+                team: "Los Angeles Lakers",
+                position: "Ala / Ala-Pivô",
+                titles: "4x Campeão NBA, 4x MVP das Finais, 4x MVP da Temporada, Maior Pontuador da História da NBA",
+                hints: [
+                    "Foi draftado diretamente do ensino médio (St. Vincent-St. Mary) na 1ª escolha geral do Draft de 2003.",
+                    "Usou as camisas #23 e #6 na NBA, com média de pontos na carreira superior a 27 pontos por jogo.",
+                    "Formou o famoso 'Big Three' em Miami com Dwyane Wade e Chris Bosh em 2010.",
+                    "Conhecido como 'The King' (O Rei), famoso por seus tocos 'chasedown' devastadores em transição.",
+                    "Lenda que trouxe o título histórico de 2016 ao Cleveland Cavaliers e atual astro do Los Angeles Lakers."
+                ]
+            },
+            {
+                id: 2,
+                name: "Stephen Curry",
+                aliases: ["steph curry", "curry", "chef curry"],
+                team: "Golden State Warriors",
+                position: "Armador",
+                titles: "4x Campeão NBA, 2x MVP (1x Unânime), 1x MVP das Finais, Maior Arremessador de 3 da História",
+                hints: [
+                    "Jogou basquete universitário por Davidson College, onde liderou uma campanha inacreditável até o Elite Eight.",
+                    "Usa a camisa #30 e revolucionou a NBA com seu alcance de arremessos quase ilimitado.",
+                    "Ganhou o primeiro MVP unânime da história da NBA em 2016 liderando um time com campanha 73-9.",
+                    "Filho do ex-jogador Dell Curry e parceiro de arremessos de Klay Thompson nos 'Splash Brothers'.",
+                    "Maior arremessador de 3 pontos de todos os tempos e símbolo supremo do Golden State Warriors."
+                ]
+            },
+            {
+                id: 3,
+                name: "Michael Jordan",
+                aliases: ["jordan", "mj", "air jordan"],
+                team: "Chicago Bulls / Washington Wizards",
+                position: "Ala-Armador",
+                titles: "6x Campeão NBA, 6x MVP das Finais, 5x MVP da Temporada, 10x Cestinha da NBA",
+                hints: [
+                    "Jogou pela Universidade da Carolina do Norte (UNC) e acertou o arremesso da vitória no título do NCAA de 1982.",
+                    "Usa a eterna camisa #23 (e brevemente a #45), venceu 10 títulos de cestinha da temporada regular.",
+                    "Membro do inesquecível 'Dream Team' de 1992 e dono de 2 'Three-Peats' com o Chicago Bulls.",
+                    "Apelidado de 'Air Jordan' por suas enterradas da linha de lance livre e competidor implacável.",
+                    "Considerado por muitos o maior jogador de basquete de todos os tempos, ícone do Chicago Bulls dos anos 90."
+                ]
+            },
+            {
+                id: 4,
+                name: "Kobe Bryant",
+                aliases: ["kobe", "black mamba", "mamba"],
+                team: "Los Angeles Lakers",
+                position: "Ala-Armador",
+                titles: "5x Campeão NBA, 2x MVP das Finais, 1x MVP (2008), 18x All-Star",
+                hints: [
+                    "Entrou na NBA vindo direto da Lower Merion High School, sendo trocado pelo Charlotte Hornets no Draft de 1996.",
+                    "Teve seus dois números de camisa (#8 e #24) aposentados por uma única franquia da NBA.",
+                    "Anotou 81 pontos em um único jogo contra o Toronto Raptors em 2006, segunda maior marca da história.",
+                    "Criador da mentalidade de treino e obsessão pela vitória chamada 'Mamba Mentality'.",
+                    "Apelidado de 'Black Mamba', jogou suas 20 temporadas inteiras no Los Angeles Lakers."
+                ]
+            },
+            {
+                id: 5,
+                name: "Giannis Antetokounmpo",
+                aliases: ["giannis", "greek freak"],
+                team: "Milwaukee Bucks",
+                position: "Ala-Pivô",
+                titles: "1x Campeão NBA, 1x MVP das Finais, 2x MVP da Temporada, Defensive Player of the Year",
+                hints: [
+                    "Nascido em Atenas na Grécia com ascendência nigeriana, jogou na segunda divisão grega pelo Filathlitikos.",
+                    "Usa a camisa #34, selecionado na 15ª posição do Draft de 2013 sem grandes expectativas iniciais.",
+                    "Marcou 50 pontos no jogo 6 das Finais de 2021 com aproveitamento quase perfeito de lances livres.",
+                    "Conhecido como 'Greek Freak' (O Aberração Grega) devido à sua passada gigantesca e envergadura impressionante.",
+                    "Superestrela do Milwaukee Bucks que liderou a franquia ao título após 50 anos de jejum."
+                ]
+            },
+            {
+                id: 6,
+                name: "Nikola Jokic",
+                aliases: ["nikola jokic", "jokic", "joker"],
+                team: "Denver Nuggets",
+                position: "Pivô",
+                titles: "1x Campeão NBA, 1x MVP das Finais, 3x MVP da Temporada",
+                hints: [
+                    "Nascido em Sombor, Sérvia, foi draftado na 41ª posição em 2014 enquanto passava um comercial de Taco Bell na TV.",
+                    "Usa a camisa #15 e se destaca por registrar um número anormal de triplos-duplos para a posição de pivô.",
+                    "Liderou os playoffs de 2023 em total de pontos, rebotes e assistências simultaneamente.",
+                    "Apelidado de 'The Joker', famoso por sua visão de jogo genial e amor apaixonado por corridas de cavalos.",
+                    "Pivô mestre dos passes e principal astro do Denver Nuggets."
+                ]
+            },
+            {
+                id: 7,
+                name: "Luka Doncic",
+                aliases: ["luka", "doncic", "luka magic"],
+                team: "Dallas Mavericks",
+                position: "Armador / Ala",
+                titles: "Rookie of the Year (2019), 5x Primeira Equipe All-NBA, Campeão da EuroLeague aos 19 anos",
+                hints: [
+                    "Desenvolvido nas categorias de base do Real Madrid, vencendo o MVP da EuroLeague antes mesmo de ir para a NBA.",
+                    "Usa a camisa #77, conhecido por seus arremessos 'step-back' de 3 pontos desafiando a gravidade.",
+                    "Anotou 73 pontos contra o Atlanta Hawks em 2024, uma das maiores pontuações individuais da era moderna.",
+                    "Conhecido como 'Luka Magic' pelo controle de ritmo de jogo sobrenatural e passes plásticos.",
+                    "Astro esloveno e líder do Dallas Mavericks, tendo chegado às Finais de 2024."
+                ]
+            },
+            {
+                id: 8,
+                name: "Shaquille O'Neal",
+                aliases: ["shaq", "shaquille", "diesel"],
+                team: "Orlando Magic / LA Lakers / Miami Heat",
+                position: "Pivô",
+                titles: "4x Campeão NBA, 3x MVP das Finais, 1x MVP (2000), 15x All-Star",
+                hints: [
+                    "Destacou-se no basquete universitário por Louisiana State University (LSU) antes de ser a 1ª escolha em 1992.",
+                    "Usa as camisas #32 e #34, pesava cerca de 150kg com domínio físico avassalador no garrafão.",
+                    "Formou uma parceria devastadora com Kobe Bryant nos Lakers resultando no tricampeonato (2000-2002).",
+                    "Conhecido como 'Shaq Attack' e 'Big Diesel', quebrava tabelas de vidro com suas enterradas ferozes.",
+                    "Carismático pivô lendário dos Lakers e Miami Heat, hoje analista na TV."
+                ]
+            },
+            {
+                id: 9,
+                name: "Kevin Durant",
+                aliases: ["durant", "kd", "slim reaper"],
+                team: "OKC Thunder / Warriors / Nets / Suns",
+                position: "Ala",
+                titles: "2x Campeão NBA, 2x MVP das Finais, 1x MVP (2014), 4x Cestinha da NBA",
+                hints: [
+                    "Jogou apenas um ano por Texas Longhorns na faculdade, sendo a 2ª escolha do Draft de 2007 pelo Seattle SuperSonics.",
+                    "Usa as camisas #35 e #7, com quase 2,11m de altura e mecânica de arremesso de um guarda.",
+                    "Ganhou seus dois títulos da NBA jogando ao lado de Stephen Curry e Klay Thompson nas Finais de 2017 e 2018.",
+                    "Famoso pelo apelido 'Slim Reaper' e por ser um dos scorers mais eficientes da história do basquete.",
+                    "Astro letal de chute de meia e longa distância, atualmente no Phoenix Suns."
+                ]
+            },
+            {
+                id: 10,
+                name: "Allen Iverson",
+                aliases: ["iverson", "ai", "the answer"],
+                team: "Philadelphia 76ers",
+                position: "Armador / Ala-Armador",
+                titles: "1x MVP (2001), Rookie of the Year (1997), 4x Cestinha da NBA, Hall of Fame",
+                hints: [
+                    "Jogou por Georgetown com o técnico John Thompson após se destacar no futebol americano e basquete no ensino médio.",
+                    "Usa a camisa #3 e media apenas 1,83m, superando gigantes no garrafão no impacto e raça.",
+                    "Liderou o Philadelphia 76ers até as Finais de 2001 e tirou o único jogo do invicto Lakers de Shaq e Kobe na série.",
+                    "Famoso pelo seu crossover devastador (inclusive no calouro Michael Jordan) e estilo cultural hip-hop marcante.",
+                    "Apelidado de 'The Answer' (A Resposta), ícone eterno do Philadelphia 76ers."
+                ]
+            },
+            {
+                id: 11,
+                name: "Tim Duncan",
+                aliases: ["duncan", "timmy", "the big fundamental"],
+                team: "San Antonio Spurs",
+                position: "Ala-Pivô / Pivô",
+                titles: "5x Campeão NBA, 3x MVP das Finais, 2x MVP da Temporada, 15x All-Star",
+                hints: [
+                    "Nasceu nas Ilhas Virgens e começou no esporte como nadador antes de um furacão destruir a piscina local.",
+                    "Usa a camisa #21 e jogou 4 anos completos por Wake Forest antes de entrar na NBA em 1997.",
+                    "Liderou as 'Torres Gêmeas' ao lado de David Robinson e depois o Big Three com Ginóbili e Parker.",
+                    "Conhecido como 'The Big Fundamental' devido à sua técnica impecável e arremesso na tabela.",
+                    "Maior ala-pivô da história da NBA, símbolo absoluto do San Antonio Spurs sob comando de Gregg Popovich."
+                ]
+            },
+            {
+                id: 12,
+                name: "Larry Bird",
+                aliases: ["bird", "larry legend"],
+                team: "Boston Celtics",
+                position: "Ala",
+                titles: "3x Campeão NBA, 3x MVP da Temporada consecutivos (1984-1986), 2x MVP das Finais",
+                hints: [
+                    "Surgiu de French Lick, Indiana, e jogou por Indiana State perdendo a famosa final universitária de 1979.",
+                    "Usa a camisa #33 e venceu o campeonato de 3 pontos do All-Star perguntando quem ficaria em segundo lugar.",
+                    "Protagonizou uma das maiores rivalidades individuais e coletivas do basquete contra Magic Johnson.",
+                    "Conhecido como 'Larry Legend', famoso pelo 'trash talk' afiado e inteligência tática extraordinária.",
+                    "Eterno camisa 33 do Boston Celtics nos anos 80."
+                ]
+            },
+            {
+                id: 13,
+                name: "Magic Johnson",
+                aliases: ["magic", "earvin johnson"],
+                team: "Los Angeles Lakers",
+                position: "Armador",
+                titles: "5x Campeão NBA, 3x MVP da Temporada, 3x MVP das Finais, 12x All-Star",
+                hints: [
+                    "Liderou Michigan State ao título da NCAA em 1979 superando Indiana State de Larry Bird.",
+                    "Usa a camisa #32 e com 2,06m de altura redefiniu a posição de armador na NBA.",
+                    "Assumiu como pivô calouro no jogo 6 das Finais de 1980 substituindo Kareem e anotou 42 pontos.",
+                    "Comandou o estilo eletrizante do Los Angeles Lakers conhecido como 'Showtime'.",
+                    "Lenda dos Lakers, famoso por seus passes sem olhar e sorriso contagiante."
+                ]
+            },
+            {
+                id: 14,
+                name: "Victor Wembanyama",
+                aliases: ["wemby", "wembanyama"],
+                team: "San Antonio Spurs",
+                position: "Ala-Pivô / Pivô",
+                titles: "Rookie of the Year (2024), Liderança em tocos em seu ano de calouro",
+                hints: [
+                    "Nascido na França, jogou profissionalmente pelo Metropolitans 92 antes do Draft de 2023.",
+                    "Usa a camisa #1 e possui mais de 2,24m de altura com uma envergadura superior a 2,40m.",
+                    "Em seu ano de calouro já registrou jogos com 5 tocos, 5 roubos, 5 assistências, 10 rebotes e pontos (5x5).",
+                    "LeBron James o chamou de 'Alien' devido à combinação nunca vista de altura e habilidade no drible/chute.",
+                    "Fenômeno francês selecionado como 1ª escolha pelo San Antonio Spurs."
+                ]
+            },
+            {
+                id: 15,
+                name: "Jayson Tatum",
+                aliases: ["tatum", "jayson"],
+                team: "Boston Celtics",
+                position: "Ala",
+                titles: "1x Campeão NBA (2024), MVP da ECF (2022), MVP do All-Star Game (2023), 5x All-Star",
+                hints: [
+                    "Jogou um ano universitário por Duke e foi a 3ª escolha do Draft de 2017.",
+                    "Usa a camisa #0, inspirado em seu ídolo de infância Kobe Bryant.",
+                    "Anotou 55 pontos no All-Star Game de 2023, quebrando o recorde histórico do evento.",
+                    "Forma a dupla dinâmica 'Jays' ao lado de Jaylen Brown.",
+                    "Astro principal que guiou o Boston Celtics ao 18º título da franquia em 2024."
+                ]
+            },
+            {
+                id: 16,
+                name: "Kyrie Irving",
+                aliases: ["kyrie", "uncle drew"],
+                team: "Cavaliers / Celtics / Nets / Mavericks",
+                position: "Armador",
+                titles: "1x Campeão NBA (2016), 8x All-Star, Rookie of the Year (2012), MVP do All-Star",
+                hints: [
+                    "Nascido em Melbourne na Austrália, atuou apenas 11 jogos por Duke devido a uma lesão na faculdade.",
+                    "Usa a camisa #2 e #11, considerado por muitos o dono do melhor controle de bola (drible) da história.",
+                    "Acertou a bola de 3 pontos decisiva no jogo 7 das Finais de 2016 contra os Warriors.",
+                    "Protagonizou o personagem de cinema 'Uncle Drew' jogando disfarçado de idoso.",
+                    "Armador mestre do mano a mano, campeão pelos Cavs e atualmente no Dallas Mavericks com Luka."
+                ]
+            },
+            {
+                id: 17,
+                name: "Anthony Davis",
+                aliases: ["ad", "anthony davis", "the brow"],
+                team: "New Orleans Pelicans / LA Lakers",
+                position: "Ala-Pivô / Pivô",
+                titles: "1x Campeão NBA (2020), Campeão Olímpico, 9x All-Star, 4x Blks Leader",
+                hints: [
+                    "Campeão da NCAA com a Universidade de Kentucky em 2012 antes de ser a 1ª escolha do Draft.",
+                    "Usa as camisas #23 e #3, defensor elite com grande proteção de aro.",
+                    "Formou uma parceria campeã na 'Bolha de Orlando' em 2020 ao lado de LeBron James.",
+                    "Conhecido mundialmente pelo apelido 'The Brow' devido à sua monocelha marcante.",
+                    "Dominante pivô e defensor estelar do Los Angeles Lakers."
+                ]
+            },
+            {
+                id: 18,
+                name: "Damian Lillard",
+                aliases: ["dame", "lillard", "dame time"],
+                team: "Portland Trail Blazers / Milwaukee Bucks",
+                position: "Armador",
+                titles: "Rookie of the Year (2013), 8x All-Star, Membro do Time do 75º Aniversário da NBA",
+                hints: [
+                    "Jogou 4 anos universitários por Weber State, uma faculdade sem tanta tradição no basquete.",
+                    "Usa a camisa #0 em homenagem às suas origens (Oakland, Ogden, Oregon).",
+                    "Eliminou o Houston Rockets em 2014 e o OKC em 2019 nos Playoffs com bolas de 3 estourando o cronômetro.",
+                    "Famoso pela comemoração apontando para o pulso indicando o 'Dame Time'.",
+                    "Ídolo histórico do Portland Trail Blazers e atual parceiro de Giannis no Milwaukee Bucks."
+                ]
+            },
+            {
+                id: 19,
+                name: "James Harden",
+                aliases: ["harden", "the beard"],
+                team: "Thunder / Rockets / Nets / Sixers / Clippers",
+                position: "Ala-Armador / Armador",
+                titles: "1x MVP (2018), 3x Cestinha da NBA, 2x Líder em Assistências, Sixth Man of the Year",
+                hints: [
+                    "Jogou por Arizona State e começou a carreira na NBA como o 6º homem do Oklahoma City Thunder.",
+                    "Usa a camisa #13 e aperfeiçoou a cavada de faltas e o arremesso 'step-back' de 3.",
+                    "Teve uma era histórica de pontuação pelo Houston Rockets com média de 36.1 pontos por jogo em 2019.",
+                    "Conhecido no mundo inteiro pelo apelido 'The Beard' (A Barba).",
+                    "Gênio das assistências e isolamentos, com passagens por Rockets, Nets, Sixers e Clippers."
+                ]
+            },
+            {
+                id: 20,
+                name: "Russell Westbrook",
+                aliases: ["westbrook", "russ", "brodie"],
+                team: "Thunder / Rockets / Wizards / Lakers / Clippers / Nuggets",
+                position: "Armador",
+                titles: "1x MVP (2017), Maior Número de Triplos-Duplos da História da NBA, 2x Cestinha",
+                hints: [
+                    "Jogou por UCLA e foi a 4ª escolha do Draft de 2008 pelo Seattle SuperSonics.",
+                    "Usa a camisa #0 e possui uma energia e atleticismo feroz incomparáveis em quadra.",
+                    "Primeiro jogador desde Oscar Robertson a ter uma temporada inteira com média de triplo-duplo (2016-17).",
+                    "Superou o recorde de Oscar Robertson tornando-se o rei absoluto dos triplos-duplos.",
+                    "Astro e motor lendário do Oklahoma City Thunder e errante em várias equipes nos últimos anos."
+                ]
+            },
+            {
+                id: 21,
+                name: "Kareem Abdul-Jabbar",
+                aliases: ["kareem", "lew alcindor"],
+                team: "Milwaukee Bucks / Los Angeles Lakers",
+                position: "Pivô",
+                titles: "6x Campeão NBA, 6x MVP da Temporada, 2x MVP das Finais, 19x All-Star",
+                hints: [
+                    "Conhecido na juventude e na faculdade (UCLA) como Lew Alcindor antes de mudar de nome.",
+                    "Usa a camisa #33 e jogou incríveis 20 temporadas na NBA mantendo alto nível até os 40 anos.",
+                    "Desenvolveu o arremesso mais indefensável de todos os tempos da NBA, o 'Skyhook' (Gancho Celestial).",
+                    "Foi o maior pontuador de todos os tempos da NBA por quase 40 anos até ser ultrapassado em 2023.",
+                    "Pivô lendário do Milwaukee Bucks e do 'Showtime' Lakers."
+                ]
+            },
+            {
+                id: 22,
+                name: "Wilt Chamberlain",
+                aliases: ["wilt", "wilt the stilt"],
+                team: "Warriors / 76ers / Lakers",
+                position: "Pivô",
+                titles: "2x Campeão NBA, 4x MVP da Temporada, 1x Jogo de 100 Pontos",
+                hints: [
+                    "Jogou pela Universidade do Kansas e também pelos Harlem Globetrotters antes da NBA.",
+                    "Usa a camisa #13 e possuía uma força física e impulsão muito à frente de sua época.",
+                    "Possui a média inacreditável de 50.4 pontos e 25.7 rebotes em uma única temporada (1961-62).",
+                    "Detém o recorde inatingível de 100 pontos em uma única partida da NBA, em 1962.",
+                    "O atleta mais dominante de sua era, lenda de Warriors, 76ers e Lakers."
+                ]
+            },
+            {
+                id: 23,
+                name: "Hakeem Olajuwon",
+                aliases: ["hakeem", "the dream"],
+                team: "Houston Rockets / Toronto Raptors",
+                position: "Pivô",
+                titles: "2x Campeão NBA, 2x MVP das Finais, 1x MVP (1994), 2x Defensive Player of the Year",
+                hints: [
+                    "Nascido na Nigéria, jogou basquete universitário no 'Phi Slama Jama' na Universidade de Houston.",
+                    "Usa a camisa #34, 1ª escolha do lendário Draft de 1984 (à frente de Michael Jordan).",
+                    "Único jogador a vencer MVP da temporada, Defensor do Ano e MVP das Finais no mesmo ano (1994).",
+                    "Criador do famoso movimento de pés no garrafão conhecido como 'Dream Shake'.",
+                    "Pivô com o trabalho de pés mais perfeito da história, bicampeão pelo Houston Rockets."
+                ]
+            },
+            {
+                id: 24,
+                name: "Kevin Garnett",
+                aliases: ["garnett", "kg", "the big ticket"],
+                team: "Timberwolves / Celtics / Nets",
+                position: "Ala-Pivô",
+                titles: "1x Campeão NBA (2008), 1x MVP (2004), Defensive Player of the Year (2008), 15x All-Star",
+                hints: [
+                    "Foi draftado direto do ensino médio em 1995 pelo Minnesota Timberwolves.",
+                    "Usa a camisa #21 e #5, conhecidíssimo por sua intensidade, gritos e bate-cabeça natabela.",
+                    "Liderou o Minnesota Timberwolves até as Finais de Conferência em 2004 antes de ir para Boston.",
+                    "Conhecido como 'The Big Ticket' por lotar ginásios com sua energia contagiante.",
+                    "Alma defensiva do Boston Celtics campeão de 2008 ao lado de Paul Pierce e Ray Allen."
+                ]
+            },
+            {
+                id: 25,
+                name: "Dirk Nowitzki",
+                aliases: ["dirk", "nowitzki"],
+                team: "Dallas Mavericks",
+                position: "Ala-Pivô",
+                titles: "1x Campeão NBA (2011), 1x MVP das Finais, 1x MVP (2007), 14x All-Star",
+                hints: [
+                    "Nascido na Alemanha, jogou pelo DJK Würzburg antes de ser recrutado para a NBA em 1998.",
+                    "Usa a camisa #41 e revolucionou a posição de ala-pivô com seu arremesso de 3 pontos.",
+                    "Patenteou o arremesso imorável em uma perna só ('One-Legged Fadeaway').",
+                    "Liderou o Dallas Mavericks a um título histórico em 2011 derrotando o Big Three do Miami Heat.",
+                    "Maior jogador europeu da história da NBA e símbolo absoluto do Dallas Mavericks."
+                ]
+            },
+            {
+                id: 26,
+                name: "Scottie Pippen",
+                aliases: ["pippen", "scottie"],
+                team: "Chicago Bulls / Rockets / Trail Blazers",
+                position: "Ala",
+                titles: "6x Campeão NBA, 8x Primeiro Time Defensivo, 7x All-Star, Dream Team 1992",
+                hints: [
+                    "Vindo da modesta universidade de Central Arkansas, foi selecionado no Draft de 1987.",
+                    "Usa a camisa #33, considerado um dos defensores de perímetro mais versáteis de todos os tempos.",
+                    "Parceiro perfeito de Michael Jordan em todos os 6 títulos de campeonato da franquia nos anos 90.",
+                    "Mestre do passe e criador de jogadas na famosa 'Triangle Offense' (Ataque em Triângulo).",
+                    "Eterno camisa 33 do Chicago Bulls e escudeiro fiel no hexacampeonato."
+                ]
+            },
+            {
+                id: 27,
+                name: "Tracy McGrady",
+                aliases: ["t-mac", "tmac", "mcgrady"],
+                team: "Raptors / Magic / Rockets",
+                position: "Ala-Armador / Ala",
+                titles: "2x Cestinha da NBA, 7x All-Star, Hall of Fame",
+                hints: [
+                    "Entrou direto do ensino médio no Draft de 1997 sendo selecionado pelo Toronto Raptors.",
+                    "Usa a camisa #1, primo distante de Vince Carter com quem jogou no início em Toronto.",
+                    "Anotou milagrosos 13 pontos em 35 segundos para virar um jogo contra o San Antonio Spurs em 2004.",
+                    "Apelidado de 'T-Mac', um dos pontuadores mais plásticos e imparáveis dos anos 2000.",
+                    "Lenda do Orlando Magic e Houston Rockets na era pós-2000."
+                ]
+            },
+            {
+                id: 28,
+                name: "Vince Carter",
+                aliases: ["vinsanity", "half man half amazing", "carter"],
+                team: "Raptors / Nets / Magic / Mavericks / Hawks",
+                position: "Ala-Armador / Ala",
+                titles: "Rookie of the Year (1999), Campeão do Torneio de Enterradas de 2000, 8x All-Star",
+                hints: [
+                    "Jogou por North Carolina (UNC) e foi trocado pelo seu parceiro Antawn Jamison na noite do Draft.",
+                    "Usa a camisa #15 e jogou em incríveis 4 décadas diferentes na NBA (anos 90, 00, 10 e 20).",
+                    "Pulou por cima do pivô francês de 2,18m Frederic Weis em uma enterrada histórica nas Olimpíadas de 2000.",
+                    "Apelidado de 'Vinsanity' e 'Half Man, Half Amazing' por suas enterradas inacreditáveis.",
+                    "Maior 'dunker' de todos os tempos e ícone inicial do Toronto Raptors e New Jersey Nets."
+                ]
+            },
+            {
+                id: 29,
+                name: "Dennis Rodman",
+                aliases: ["rodman", "the worm"],
+                team: "Pistons / Spurs / Bulls / Lakers",
+                position: "Ala-Pivô",
+                titles: "5x Campeão NBA, 2x Defensive Player of the Year, 7x Líder em Rebotes",
+                hints: [
+                    "Teve uma infância difícil e jogou por Southeastern Oklahoma State antes de entrar na NBA aos 25 anos.",
+                    "Usa as camisas #10 e #91, especialista absoluto em rebotes e defesa sem precisar pontuar.",
+                    "Famoso por mudar a cor do cabelo constantemente, piercings, tatuagens e vida noturna agitada.",
+                    "Apelidado de 'The Worm' (O Verme), parte fundamental do 'Bad Boys' Pistons e dos Bulls de Jordan.",
+                    "Rei dos rebotes da NBA e um dos personagens mais extravagantes da história do esporte."
+                ]
+            },
+            {
+                id: 30,
+                name: "Kawhi Leonard",
+                aliases: ["kawhi", "the claw"],
+                team: "Spurs / Raptors / Clippers",
+                position: "Ala",
+                titles: "2x Campeão NBA, 2x MVP das Finais, 2x Defensive Player of the Year",
+                hints: [
+                    "Jogou por San Diego State e foi trocado pelo Indiana Pacers para o San Antonio Spurs no Draft.",
+                    "Usa a camisa #2, conhecido por suas mãos gigantescas e estilo extremamente calado e frio.",
+                    "Acertou a bola no estouro do cronômetro no Jogo 7 contra o Sixers em 2019 que quicou 4 vezes no aro.",
+                    "Conhecido pelo apelido 'The Claw' (A Garra) e por ser um defensor de perímetro devastador.",
+                    "Liderou o Toronto Raptors ao seu único título histórico em 2019 e hoje atua no LA Clippers."
+                ]
+            },
+            {
+                id: 31,
+                name: "Jimmy Butler",
+                aliases: ["jimmy butler", "jimmy buckets"],
+                team: "Bulls / Timberwolves / Sixers / Heat",
+                position: "Ala",
+                titles: "6x All-Star, Most Improved Player (2015), 2x Campeão da Conferência Leste",
+                hints: [
+                    "Foi expulso de casa na adolescência e jogou na faculdade por Marquette antes de ser a 30ª escolha do Draft.",
+                    "Usa a camisa #22, famoso por elevar absurdamente seu nível de jogo durante os Playoffs.",
+                    "Liderou o Miami Heat como 8º colocado da conferência até as Finais da NBA em 2023.",
+                    "Conhecido como 'Jimmy Buckets' e por sua ética de trabalho rígida e agressiva.",
+                    "Líder raçudo e coração do Miami Heat."
+                ]
+            },
+            {
+                id: 32,
+                name: "Shai Gilgeous-Alexander",
+                aliases: ["sga", "shai"],
+                team: "LA Clippers / Oklahoma City Thunder",
+                position: "Armador",
+                titles: "2x Primeira Equipe All-NBA, Vice-MVP (2024), All-Star",
+                hints: [
+                    "Nascido em Toronto no Canadá, jogou um ano por Kentucky antes de ir para a NBA em 2018.",
+                    "Usa a camisa #2, mestre na infiltração de meia distância e mudanças de ritmo imprevistas.",
+                    "Foi a peça central trocada por Paul George que reconstruiu o Oklahoma City Thunder.",
+                    "Geralmente abreviado como 'SGA', também famoso por ser um ícone de moda fora das quadras.",
+                    "Superastro canadense e líder da nova era do Oklahoma City Thunder."
+                ]
+            },
+            {
+                id: 33,
+                name: "Donovan Mitchell",
+                aliases: ["spida", "mitchell"],
+                team: "Utah Jazz / Cleveland Cavaliers",
+                position: "Ala-Armador",
+                titles: "5x All-Star, Campeão do Torneio de Enterradas (2018), Jogo de 71 Pontos",
+                hints: [
+                    "Jogou por Louisville e foi selecionado pela 13ª escolha do Draft de 2017.",
+                    "Usa a camisa #45 e possui uma impulsão e força física eletrizantes para infiltrações.",
+                    "Anotou 71 pontos em um único jogo em 2023 contra o Chicago Bulls.",
+                    "Possui o apelido de 'Spida' devido ao seu alcance defensivo e flexibilidade em quadra.",
+                    "Ex-astro do Utah Jazz e atual líder pontuador do Cleveland Cavaliers."
+                ]
+            },
+            {
+                id: 34,
+                name: "Zion Williamson",
+                aliases: ["zion"],
+                team: "New Orleans Pelicans",
+                position: "Ala-Pivô",
+                titles: "2x All-Star, 1ª Escolha Geral do Draft (2019)",
+                hints: [
+                    "Parou a internet no ensino médio com vídeos virais de enterradas brutais na Spartanburg Day School.",
+                    "Jogou um ano super badalado na faculdade de Duke antes de entrar na NBA.",
+                    "Usa a camisa #1, pesando mais de 125kg mas com uma impulsão vertical espetacular.",
+                    "Explosão física sem precedentes no garrafão, com média superior a 25 pontos por jogo.",
+                    "Astro jovem e 1ª escolha do Draft pelo New Orleans Pelicans."
+                ]
+            },
+            {
+                id: 35,
+                name: "Ja Morant",
+                aliases: ["ja", "morant"],
+                team: "Memphis Grizzlies",
+                position: "Armador",
+                titles: "Rookie of the Year (2020), Most Improved Player (2022), 2x All-Star",
+                hints: [
+                    "Foi descoberto por acaso em um ginásio secundário da universidade Murray State enquanto comia batatas fritas.",
+                    "Usa a camisa #12, conhecido por acrobacias no ar e tentativas de enterradas insanas.",
+                    "Liderou os Grizzlies da reconstrução até o topo da Conferência Oeste.",
+                    "Estilo de jogo elétrico e acrobático lembrando uma mistura de Allen Iverson e Derrick Rose.",
+                    "Armador espetacular e rosto do Memphis Grizzlies."
+                ]
+            },
+            {
+                id: 36,
+                name: "Devin Booker",
+                aliases: ["booker", "book"],
+                team: "Phoenix Suns",
+                position: "Ala-Armador",
+                titles: "4x All-Star, Jogo de 70 Pontos (2017), Campeão Olímpico",
+                hints: [
+                    "Saiu do banco na recheada equipe da Universidade de Kentucky e foi a 13ª escolha do Draft de 2015.",
+                    "Usa a camisa #1, tido como um dos pupilos mais próximos de Kobe Bryant.",
+                    "Anotou 70 pontos contra o Boston Celtics em TD Garden quando tinha apenas 20 anos de idade.",
+                    "Mestre do arremesso de meia distância e isolamentos ofensivos limpos.",
+                    "Franchise player e ala-armador do Phoenix Suns."
+                ]
+            },
+            {
+                id: 37,
+                name: "Trae Young",
+                aliases: ["trae", "ice trae"],
+                team: "Atlanta Hawks",
+                position: "Armador",
+                titles: "3x All-Star, Líder em Pontos e Assistências Totais na mesma temporada (2022)",
+                hints: [
+                    "Brilhou na Universidade de Oklahoma acertando arremessos do logo central.",
+                    "Foi trocado por Luka Doncic na noite do Draft de 2018.",
+                    "Usa a camisa #11, mestre do passe de ponte-aérea e do arremesso 'floater'.",
+                    "Conhecido como 'Ice Trae' por sua frieza em calar torcidas adversárias nos Playoffs.",
+                    "Armador veloz e especialista em bolas de 3 do Atlanta Hawks."
+                ]
+            },
+            {
+                id: 38,
+                name: "Anthony Edwards",
+                aliases: ["ant", "ant-man"],
+                team: "Minnesota Timberwolves",
+                position: "Ala-Armador",
+                titles: "2x All-Star, 1ª Escolha Geral do Draft (2020), Campeão Olímpico (2024)",
+                hints: [
+                    "Jogou basquete universitário pela Universidade da Geórgia antes de ser a 1ª escolha em 2020.",
+                    "Usa a camisa #5 (e anteriormente a #1), com carisma magnético nas entrevistas.",
+                    "Protagonizou enterradas históricas sobre John Collins e Yuta Watanabe.",
+                    "Conhecido pelo apelido de 'Ant-Man' e por comparações com o estilo de Michael Jordan.",
+                    "Super estrela em ascensão e líder do Minnesota Timberwolves."
+                ]
+            },
+            {
+                id: 39,
+                name: "Paul George",
+                aliases: ["pg13", "paul george"],
+                team: "Pacers / Thunder / Clippers / 76ers",
+                position: "Ala",
+                titles: "9x All-Star, Most Improved Player (2013), 6x All-NBA",
+                hints: [
+                    "Jogou por Fresno State antes de ser draftado pelo Indiana Pacers na 10ª posição.",
+                    "Superou uma fratura exposta terrível na perna durante treino da seleção americana em 2014.",
+                    "Famoso pelo apelido 'PG-13' após mudar para o número 13 de camisa.",
+                    "Um dos 'Two-Way Players' (excelente no ataque e na defesa) mais completos do basquete.",
+                    "Destacou-se em Pacers, Thunder e Clippers, assinando com o Philadelphia 76ers em 2024."
+                ]
+            },
+            {
+                id: 40,
+                name: "Jaylen Brown",
+                aliases: ["jaylen", "brown"],
+                team: "Boston Celtics",
+                position: "Ala / Ala-Armador",
+                titles: "1x Campeão NBA (2024), MVP das Finais (2024), MVP das Finais do Leste, 3x All-Star",
+                hints: [
+                    "Estudou na respeitada Universidade da Califórnia (UC Berkeley) e foi a 3ª escolha em 2016.",
+                    "Usa a camisa #7 e destaca-se por seu atleticismo e defesa agressiva no homem da bola.",
+                    "Foi o MVP do título do Boston Celtics em 2024 travando astros adversários nas Finais.",
+                    "Conhecido pelo forte engajamento em causas sociais e intelectuais fora da quadra.",
+                    "Ala campeão do Boston Celtics junto de Jayson Tatum."
+                ]
+            },
+            {
+                id: 41,
+                name: "Joel Embiid",
+                aliases: ["embiid", "the process"],
+                team: "Philadelphia 76ers",
+                position: "Pivô",
+                titles: "1x MVP (2023), 2x Cestinha da NBA, 7x All-Star",
+                hints: [
+                    "Nascido em Camarões, começou a jogar basquete tarde aos 15 anos após praticar voleibol.",
+                    "Jogou por Kansas na faculdade e perdeu seus dois primeiros anos de NBA por fratura no pé.",
+                    "Usa a camisa #21 e possui um jogo de pés e arremesso de meia distância de ala.",
+                    "Adotou o apelido 'The Process' (O Processo) em referência à reconstrução do Sixers.",
+                    "Pivô ultra dominante e cestinha do Philadelphia 76ers."
+                ]
+            },
+            {
+                id: 42,
+                name: "Klay Thompson",
+                aliases: ["klay", "game 6 klay"],
+                team: "Golden State Warriors / Dallas Mavericks",
+                position: "Ala-Armador",
+                titles: "4x Campeão NBA, 5x All-Star, Recorde de 14 bolas de 3 em um jogo",
+                hints: [
+                    "Filho do ex-jogador Mychal Thompson, jogou por Washington State na faculdade.",
+                    "Usa a camisa #11, famoso por não precisar dar muitos dribles para pontuar alto.",
+                    "Anotou inacreditáveis 37 pontos em um ÚNICO quarto contra o Sacramento Kings em 2015.",
+                    "Famoso pelo apelido 'Game 6 Klay' por performances épicas em jogos 6 de Playoffs.",
+                    "Metade dos 'Splash Brothers' do Warriors, transferido para o Dallas Mavericks em 2024."
+                ]
+            },
+            {
+                id: 43,
+                name: "Draymond Green",
+                aliases: ["draymond", "dray"],
+                team: "Golden State Warriors",
+                position: "Ala-Pivô",
+                titles: "4x Campeão NBA, Defensive Player of the Year (2017), 4x All-Star",
+                hints: [
+                    "Jogou 4 anos por Michigan State e foi apenas a 35ª escolha (2ª rodada) no Draft de 2012.",
+                    "Usa a camisa #23, atuando como o ancoradouro defensivo e organizador de jogadas.",
+                    "Consistente em gerar triplos-duplos sem necessariamente pontuar em dígitos duplos.",
+                    "Famoso por sua vocação vocal, raça e intensas polêmicas dentro de quadra.",
+                    "Coração e cérebro defensivo da dinastia do Golden State Warriors."
+                ]
+            },
+            {
+                id: 44,
+                name: "Chris Paul",
+                aliases: ["cp3", "point god"],
+                team: "Hornets / Clippers / Rockets / Suns / Warriors / Spurs",
+                position: "Armador",
+                titles: " Rookie of the Year (2006), 12x All-Star, 5x Líder em Assistências, 6x Líder em Roubos",
+                hints: [
+                    "Jogou por Wake Forest e quase foi trocado para o Lakers em uma negociação vetada pela NBA.",
+                    "Usa a camisa #3, apelidado mundialmente de 'CP3'.",
+                    "Conhecido como 'Point God' por seu QI de basquete lendário e controle absoluto do jogo.",
+                    "Liderou o 'Lob City' do LA Clippers com enterradas de Blake Griffin e DeAndre Jordan.",
+                    "Um dos maiores armadores puros da história, com passagens marcantes em várias franquias."
+                ]
+            },
+            {
+                id: 45,
+                name: "Carmelo Anthony",
+                aliases: ["melo", "carmelo"],
+                team: "Nuggets / Knicks / Thunder / Rockets / Blazers / Lakers",
+                position: "Ala / Ala-Pivô",
+                titles: "1x Cestinha da NBA (2013), 10x All-Star, Campeão da NCAA (Syracuse 2003)",
+                hints: [
+                    "Liderou a Universidade de Syracuse ao título da NCAA como calouro em 2003.",
+                    "Usa a camisa #15 e #7, dono de um dos arremessos de meia distância mais bonitos do esporte.",
+                    "Famoso por sua comemoração de três dedos na fonte da cabeça ('Three to the dome').",
+                    "Apelidado carinhosamente de 'Melo', medalhista de ouro olímpico mestre do 'triple threat'.",
+                    "Ícone incontestado do Denver Nuggets e do New York Knicks."
+                ]
+            },
+            {
+                id: 46,
+                name: "Pau Gasol",
+                aliases: ["pau gasol", "gasol"],
+                team: "Grizzlies / Lakers / Bulls / Spurs",
+                position: "Ala-Pivô / Pivô",
+                titles: "2x Campeão NBA (2009, 2010), Rookie of the Year (2002), 6x All-Star, Hall of Fame",
+                hints: [
+                    "Nascido em Barcelona, Espanha, iniciou no FC Barcelona antes de ir para a NBA.",
+                    "Usa a camisa #16, com camisa aposentada no topo do Crypto.com Arena nos Lakers.",
+                    "Foi a peça chave trocada em 2008 que permitiu a Kobe Bryant vencer mais 2 títulos.",
+                    "Pivô técnico e gracioso com passes fantásticos e alto QI de jogo.",
+                    "Lenda do basquete espanhol e bicampeão com o Los Angeles Lakers."
+                ]
+            },
+            {
+                id: 47,
+                name: "Manu Ginobili",
+                aliases: ["manu", "ginobili"],
+                team: "San Antonio Spurs",
+                position: "Ala-Armador",
+                titles: "4x Campeão NBA, Sixth Man of the Year (2008), 2x All-Star, Ouro Olímpico (2004)",
+                hints: [
+                    "Nascido em Bahía Blanca, Argentina, jogou na Itália (Virtus Bologna) antes da NBA.",
+                    "Selecionado na distante 57ª posição do Draft de 1999 pelo San Antonio Spurs.",
+                    "Popularizou na NBA o movimento mortal conhecido como 'Eurostep'.",
+                    "Liderou a Argentina na vitória histórica sobre o Dream Team americano nas Olimpíadas de Atenas 2004.",
+                    "Lenda sul-americana e membro do Big Three do San Antonio Spurs com Duncan e Parker."
+                ]
+            },
+            {
+                id: 48,
+                name: "Tony Parker",
+                aliases: ["tony parker", "parker"],
+                team: "San Antonio Spurs / Charlotte Hornets",
+                position: "Armador",
+                titles: "4x Campeão NBA, 1x MVP das Finais (2007), 6x All-Star, Hall of Fame",
+                hints: [
+                    "Nascido em Bruges na Bélgica e criado na França, foi draftado em 2001.",
+                    "Usa a camisa #9, famoso por sua velocidade em transição e pela sua 'tear-drop' (flutuador).",
+                    "Primeiro jogador europeu da história a vencer o prêmio de MVP das Finais da NBA (2007).",
+                    "Veloz maestro da armação sob o comando de Gregg Popovich.",
+                    "Armador francês lendário da dinastia do San Antonio Spurs."
+                ]
+            },
+            {
+                id: 49,
+                name: "Dwyane Wade",
+                aliases: ["flash", "wade", "d-wade"],
+                team: "Miami Heat / Bulls / Cavaliers",
+                position: "Ala-Armador",
+                titles: "3x Campeão NBA, 1x MVP das Finais (2006), 13x All-Star, Cestinha (2009)",
+                hints: [
+                    "Jogou por Marquette e destruiu no torneio da NCAA antes do Draft de 2003.",
+                    "Usa a camisa #3 e carregou o Miami Heat ao título de 2006 com uma das maiores atuações de Finais.",
+                    "Apelidado de 'Flash' por Shaquille O'Neal devido ao seu primeiro passo explosivo.",
+                    "Formou a famosa parceria das 'Lob City East' com seu melhor amigo LeBron James.",
+                    "O maior jogador da história da franquia do Miami Heat ('Wade County')."
+                ]
+            },
+            {
+                id: 50,
+                name: "Ray Allen",
+                aliases: ["jesus shuttlesworth", "ray allen"],
+                team: "Bucks / Supersonics / Celtics / Heat",
+                position: "Ala-Armador",
+                titles: "2x Campeão NBA, 10x All-Star, Um dos maiores arremessadores da história",
+                hints: [
+                    "Jogou pela Universidade de Connecticut (UConn) e estrelou o filme 'He Got Game' como Jesus Shuttlesworth.",
+                    "Usa as camisas #34 e #20, conhecido por uma mecânica de arremesso perfeita e ultra veloz.",
+                    "Acertou o arremesso de 3 pontos no canto da quadra mais dramático da história no jogo 6 das Finais de 2013 pelo Heat.",
+                    "Foi o líder em bolas de 3 convertidas na história da NBA por muitos anos até Steph Curry superá-lo.",
+                    "Gênio dos arremessos, campeão com o Boston Celtics (2008) e Miami Heat (2013)."
+                ]
+            },
+            {
+                id: 51,
+                name: "Steve Nash",
+                aliases: ["nash", "steve nash"],
+                team: "Suns / Mavericks / Lakers",
+                position: "Armador",
+                titles: "2x MVP da Temporada (2005, 2006), 8x All-Star, 5x Líder em Assistências",
+                hints: [
+                    "Nascido na África do Sul e criado no Canadá, jogou pela modesta faculdade de Santa Clara.",
+                    "Usa a camisa #13, gênio no passe e arremessador do clube '50-40-90'.",
+                    "Comandou o ataque revolucionário do Phoenix Suns apelidado de '7 Seconds or Less'.",
+                    "Venceu MVPs consecutivos sem ter média superior a 20 pontos por jogo, focando no passe.",
+                    "Armador canadense lendário, mestre do Pick and Roll no Phoenix Suns."
+                ]
+            },
+            {
+                id: 52,
+                name: "Jason Kidd",
+                aliases: ["kidd", "jason kidd"],
+                team: "Suns / Nets / Mavericks / Knicks",
+                position: "Armador",
+                titles: "1x Campeão NBA (2011), 10x All-Star, 5x Líder em Assistências, Hall of Fame",
+                hints: [
+                    "Jogou por Cal (California) e compartilhou o prêmio de Calouro do Ano em 1995 com Grant Hill.",
+                    "Usa a camisa #32 e #5, mestre do passe em transição e especialista em triplos-duplos.",
+                    "Liderou o New Jersey Nets a duas Finais de NBA seguidas em 2002 e 2003.",
+                    "Famoso pelo gesto de mandar um beijo para a cesta antes de arremessar lances livres.",
+                    "Armador lendário, campeão em 2011 pelo Dallas Mavericks e atual treinador."
+                ]
+            },
+            {
+                id: 53,
+                name: "Charles Barkley",
+                aliases: ["sir charles", "barkley", "round mound of rebound"],
+                team: "76ers / Suns / Rockets",
+                position: "Ala-Pivô",
+                titles: "1x MVP (1993), 11x All-Star, Dream Team 1992, Hall of Fame",
+                hints: [
+                    "Jogou por Auburn e media apenas 1,98m jogando na posição de ala-pivô no garrafão.",
+                    "Usa a camisa #34, famoso por dominar os rebotes contra jogadores muito mais altos.",
+                    "Apelidado de 'Sir Charles' e 'The Round Mound of Rebound'.",
+                    "Liderou o Phoenix Suns até as Finais de 1993 enfrentando o Chicago Bulls de Jordan.",
+                    "Lenda sem anel de campeão, famoso comentarista carismático do programa 'Inside the NBA'."
+                ]
+            },
+            {
+                id: 54,
+                name: "Patrick Ewing",
+                aliases: ["ewing", "patrick ewing"],
+                team: "New York Knicks / Sonics / Magic",
+                position: "Pivô",
+                titles: "Rookie of the Year (1986), 11x All-Star, Dream Team 1992, Hall of Fame",
+                hints: [
+                    "Nascido na Jamaica, brilhou na Universidade de Georgetown sob comando de John Thompson.",
+                    "1ª escolha do histórico Draft de 1985 com a famosa 'envelopada congelada' do sorteio.",
+                    "Usa a camisa #33 e foi a pedra fundamental da defesa durona do Madison Square Garden nos anos 90.",
+                    "Liderou os Knicks até as Finais de 1994 contra o Houston Rockets.",
+                    "O maior ídolo e pivô do New York Knicks da era moderna."
+                ]
+            },
+            {
+                id: 55,
+                name: "Karl Malone",
+                aliases: ["the mailman", "malone"],
+                team: "Utah Jazz / Los Angeles Lakers",
+                position: "Ala-Pivô",
+                titles: "2x MVP (1997, 1999), 14x All-Star, 3º Maior Cestinha da História da NBA",
+                hints: [
+                    "Jogou por Louisiana Tech e construiu uma forma física de fisiculturista impecável.",
+                    "Usa a camisa #32, formando a dupla de 'Pick and Roll' mais famosa da história com John Stockton.",
+                    "Apelidado de 'The Mailman' (O Carteiro) porque 'sempre entregava a bola na cesta'.",
+                    "Chegou a duas Finais consecutivas em 1997 e 1998 sendo derrotado pelos Bulls de Jordan.",
+                    "Ala-pivô físico lendário do Utah Jazz."
+                ]
+            },
+            {
+                id: 56,
+                name: "John Stockton",
+                aliases: ["stockton", "john stockton"],
+                team: "Utah Jazz",
+                position: "Armador",
+                titles: "Maior Líder em Assistências e Roubos de Bola da História da NBA, 10x All-Star",
+                hints: [
+                    "Jogou por Gonzaga e foi draftado na 16ª posição em 1984 sem alarde.",
+                    "Usa a camisa #12 e calções curtos clássicos, sendo um exemplo de durabilidade extrema.",
+                    "Detém recordes inalcançáveis de assistências (15.806) e roubos de bola (3.265) na carreira.",
+                    "Parceiro perfeito de Karl Malone no Utah Jazz por quase duas décadas.",
+                    "O armador tradicional mais eficiente e garçom definitivo da NBA."
+                ]
+            },
+            {
+                id: 57,
+                name: "Reggie Miller",
+                aliases: ["reggie miller", "reggie"],
+                team: "Indiana Pacers",
+                position: "Ala-Armador",
+                titles: "5x All-Star, Hall of Fame, 50-40-90 Club",
+                hints: [
+                    "Jogou por UCLA e superou problemas ósseos nas pernas quando criança que o impediam de andar.",
+                    "Usa a camisa #31, especialista em arremessos de 3 sob extrema pressão nos segundos finais.",
+                    "Marcou inesquecíveis 8 pontos em 9 segundos contra o NY Knicks em pleno Madison Square Garden em 1995.",
+                    "Rival folclórico do cineasta Spike Lee nas cadeiras de quadra de Nova York.",
+                    "Eterno camisa 31 e símbolo maior da história do Indiana Pacers."
+                ]
+            },
+            {
+                id: 58,
+                name: "Dominique Wilkins",
+                aliases: ["human highlight film", "wilkins"],
+                team: "Atlanta Hawks / Clippers / Celtics / Spurs / Magic",
+                position: "Ala",
+                titles: "2x Campeão do Torneio de Enterradas, 9x All-Star, Cestinha (1986)",
+                hints: [
+                    "Nascido em Paris, França, jogou basquete universitário na Universidade da Geórgia.",
+                    "Usa a camisa #21, famoso por batalhas épicas no campeonato de enterradas contra Michael Jordan.",
+                    "Apelidado de 'The Human Highlight Film' devido às suas enterradas moinho de vento (windmill).",
+                    "Teve duelos pontuadores antológicos contra Larry Bird nos Playoffs nos anos 80.",
+                    "Astro maior e cestinha voador do Atlanta Hawks."
+                ]
+            },
+            {
+                id: 59,
+                name: "Clyde Drexler",
+                aliases: ["clyde the glide", "drexler"],
+                team: "Portland Trail Blazers / Houston Rockets",
+                position: "Ala-Armador",
+                titles: "1x Campeão NBA (1995), 10x All-Star, Dream Team 1992, Hall of Fame",
+                hints: [
+                    "Membro da famosa equipe 'Phi Slama Jama' da Universidade de Houston junto de Hakeem Olajuwon.",
+                    "Usa a camisa #22, com um estilo de planar no ar em direção à cesta extremamente elegante.",
+                    "Apelidado de 'Clyde The Glide' devido à sua suavidade nas enterradas.",
+                    "Foi o grande rival de posição de Michael Jordan nas Finais de 1992.",
+                    "Ídolo dos Blazers que se reuniu com Hakeem nos Rockets para ser campeão em 1995."
+                ]
+            },
+            {
+                id: 60,
+                name: "David Robinson",
+                aliases: ["the admiral", "robinson"],
+                team: "San Antonio Spurs",
+                position: "Pivô",
+                titles: "2x Campeão NBA, 1x MVP (1995), Defensive Player of the Year, Quadruplo-Duplo",
+                hints: [
+                    "Serviu 2 anos na Marinha Americana (US Navy) após se formar na Academia Naval antes de ir para a NBA.",
+                    "Usa a camisa #50, conhecido por ter o físico de musculação mais trincado entre os pivôs.",
+                    "Anotou um raríssimo Quadruplo-Duplo em 1994 e marcou 71 pontos no último jogo da temporada para ser cestinha.",
+                    "Conhecido carinhosamente como 'The Admiral' (O Almirante).",
+                    "Pivô lendário do San Antonio Spurs que acolheu Tim Duncan na chegada do jovem."
+                ]
+            },
+            {
+                id: 61,
+                name: "Paul Pierce",
+                aliases: ["the truth", "pierce"],
+                team: "Boston Celtics / Nets / Wizards / Clippers",
+                position: "Ala",
+                titles: "1x Campeão NBA (2008), 1x MVP das Finais (2008), 10x All-Star",
+                hints: [
+                    "Jogou por Kansas e sobreviveu a 11 facadas em uma casa nocturna no ano de 2000 sem perder jogos na temporada.",
+                    "Usa a camisa #34, mestre em criar arremessos na meia distância e do topo do garrafão.",
+                    "Shaquille O'Neal lhe deu o apelido famoso 'The Truth' após uma atuação dominante.",
+                    "Protagonizou a épica cena de voltar da cadeira de rodas para vencer o jogo 1 das Finais de 2008.",
+                    "Eterno capitão e líder do Boston Celtics no título de 2008."
+                ]
+            },
+            {
+                id: 62,
+                name: "Kevin Love",
+                aliases: ["kevin love", "love"],
+                team: "T Wolves / Cavaliers / Heat",
+                position: "Ala-Pivô / Pivô",
+                titles: "1x Campeão NBA (2016), Most Improved Player (2011), 5x All-Star, Campeão do Torneio de 3s",
+                hints: [
+                    "Jogou por UCLA e é sobrinho de Mike Love, membro da banda de rock The Beach Boys.",
+                    "Usa as camisas #42 e #0, rebocador monstruoso que converteu o jogo em arremessos do perímetro.",
+                    "Registrou um jogo histórico de 31 pontos e 31 rebotes contra o Knicks em 2010.",
+                    "Famoso pela defesa decisiva ('The Stop') em cima de Steph Curry no jogo 7 das Finais de 2016.",
+                    "Rei dos passe de gancho de quadra inteira e campeão de 2016 com os Cavs."
+                ]
+            },
+            {
+                id: 63,
+                name: "Derrick Rose",
+                aliases: ["d-rose", "rose"],
+                team: "Bulls / Knicks / Cavs / Timberwolves / Pistons / Grizzlies",
+                position: "Armador",
+                titles: "1x MVP da Temporada (2011 - Mais Jovem da História), Rookie of the Year (2009), 3x All-Star",
+                hints: [
+                    "Criado nas quadras perigosas de Chicago, jogou um ano pela Universidade de Memphis.",
+                    "1ª escolha do Draft de 2008 pelo time de sua cidade natal, Chicago Bulls.",
+                    "Tornou-se o jogador mais jovem de todos os tempos a vencer o prêmio de MVP com apenas 22 anos.",
+                    "Teve a carreira drasticamente alterada por uma lesão grave no joelho (ACL) nos Playoffs de 2012.",
+                    "Astro hiper veloz com acrobacias inesquecíveis pelo Chicago Bulls."
+                ]
+            },
+            {
+                id: 64,
+                name: "Blake Griffin",
+                aliases: ["blake", "griffin"],
+                team: "Clippers / Pistons / Nets / Celtics",
+                position: "Ala-Pivô",
+                titles: "Rookie of the Year (2011), 6x All-Star, Campeão do Torneio de Enterradas (2011)",
+                hints: [
+                    "Foi a 1ª escolha do Draft de 2009 vindo da Universidade de Oklahoma.",
+                    "Entrou num carro Kia e saltou por cima do capô para vencer o Torneio de Enterradas do All-Star de 2011.",
+                    "Usa a camisa #32, pilar de enterradas brutais no 'Lob City' do Los Angeles Clippers.",
+                    "Evoluiu na carreira tornando-se um ótimo passador e arremessador de 3 pontos.",
+                    "Ala-pivô espetacular e explosivo dos Clippers nos anos 2010."
+                ]
+            },
+            {
+                id: 65,
+                name: "DeMar DeRozan",
+                aliases: ["derozan", "demar"],
+                team: "Raptors / Spurs / Bulls / Kings",
+                position: "Ala-Armador / Ala",
+                titles: "6x All-Star, 3x All-NBA, Mestre do Mid-Range",
+                hints: [
+                    "Criado em Compton, Califórnia, jogou por USC antes de ir para o Draft de 2009.",
+                    "Usa as camisas #10 e #11, mantendo viva a arte clássica do arremesso de meia distância.",
+                    "Acertou bolas de 3 pontos no estouro do cronômetro em dias consecutivos por times diferentes em 2021/22.",
+                    "Construiu uma linda amizade e parceria de quadra com Kyle Lowry em Toronto.",
+                    "Cestinha prolífico e ícone do Toronto Raptors, Spurs e Chicago Bulls."
+                ]
+            },
+            {
+                id: 66,
+                name: "Zach LaVine",
+                aliases: ["lavine", "zach lavine"],
+                team: "Timberwolves / Chicago Bulls",
+                position: "Ala-Armador",
+                titles: "2x Campeão do Torneio de Enterradas (2015, 2016), 2x All-Star",
+                hints: [
+                    "Jogou por UCLA e foi selecionado pela 13ª escolha do Draft de 2014.",
+                    "Usa a camisa #8 e travou um dos maiores duelos de enterradas da história contra Aaron Gordon em 2016.",
+                    "Possui uma mecânica de arremesso fluida acompanhada de um salto vertical de elite.",
+                    "Cestinha de alta pontuação e capacidade de explosão ofensiva.",
+                    "Ala-armador voador e principal pontuador do Chicago Bulls."
+                ]
+            },
+            {
+                id: 67,
+                name: "LaMelo Ball",
+                aliases: ["lamelo", "melo ball"],
+                team: "Charlotte Hornets",
+                position: "Armador",
+                titles: "Rookie of the Year (2021), 1x All-Star",
+                hints: [
+                    "Seguiu um caminho não tradicional jogando profissionalmente na Lituânia e na Austrália (NBL) antes da NBA.",
+                    "Filho de LaVar Ball e irmão de Lonzo Ball, astro de mídias sociais desde a adolescência em Chino Hills.",
+                    "Usa a camisa #1, conhecido por passes de quadra inteira com estilo vistoso e chamativo.",
+                    "Tornou-se um dos jogadores mais jovens a registrar um triplo-duplo na NBA.",
+                    "Armador jovem, vistoso e franchise player do Charlotte Hornets."
+                ]
+            },
+            {
+                id: 68,
+                name: "Domantas Sabonis",
+                aliases: ["sabonis", "domantas"],
+                team: "Thunder / Pacers / Sacramento Kings",
+                position: "Ala-Pivô / Pivô",
+                titles: "3x All-Star, 2x Líder em Rebotes da NBA, Líder em Triplos-Duplos (2024)",
+                hints: [
+                    "Filho da lenda do basquete soviético/lituano Arvydas Sabonis.",
+                    "Jogou basquete universitário por Gonzaga antes de ir para a NBA.",
+                    "Usa a camisa #11, máquina de screens, passes no pivô alto e rebotes defensivos.",
+                    "Foi a peça trocada por Tyrese Haliburton que encerrou a seca de 16 anos sem playoffs do Sacramento Kings.",
+                    "Pivô canhoto lituano e motor do ataque do Sacramento Kings."
+                ]
+            },
+            {
+                id: 69,
+                name: "Bam Adebayo",
+                aliases: ["bam", "adebayo"],
+                team: "Miami Heat",
+                position: "Pivô / Ala-Pivô",
+                titles: "3x All-Star, 5x Time Defensivo da NBA, Campeão Olímpico",
+                hints: [
+                    "Jogou por Kentucky com John Calipari e foi a 14ª escolha do Draft de 2017.",
+                    "Seu apelido 'Bam' veio do personagem de Os Flintstones por sua força quando bebê.",
+                    "Usa a camisa #13, famoso por dar o toco decisivo no aro em Jayson Tatum nas Finais do Leste de 2020.",
+                    "Um dos pivôs mais versáteis do mundo na defesa, capaz de marcar armadores no perímetro.",
+                    "Âncora defensiva e capitão do Miami Heat."
+                ]
+            },
+            {
+                id: 70,
+                name: "Pascal Siakam",
+                aliases: ["spicy p", "siakam"],
+                team: "Toronto Raptors / Indiana Pacers",
+                position: "Ala-Pivô",
+                titles: "1x Campeão NBA (2019), Most Improved Player (2019), 2x All-Star",
+                hints: [
+                    "Nascido em Duala no Camarões, inicialmente treinava para ser padre em um seminário antes de descobrir o basquete.",
+                    "Jogou por New Mexico State e brilhou na G-League antes de se firmar na NBA.",
+                    "Usa a camisa #43, famoso por seus giros rápidos no garrafão ('spin move').",
+                    "Apelidado de 'Spicy P' por seu jogo eletrizante.",
+                    "Peça chave no título dos Raptors em 2019 e atual astro do Indiana Pacers."
+                ]
+            },
+            {
+                id: 71,
+                name: "Jamal Murray",
+                aliases: ["jamal murray", "murray"],
+                team: "Denver Nuggets",
+                position: "Armador",
+                titles: "1x Campeão NBA (2023), Performance Lendária na Bolha de Orlando (2020)",
+                hints: [
+                    "Canadense de Kitchener, jogou um ano por Kentucky antes de ser draftado na 7ª escolha em 2016.",
+                    "Usa a camisa #27 e é famoso por elevar drasticamente seus números durante os Playoffs.",
+                    "Teve duelos antológicos de 50 pontos contra Donovan Mitchell na Bolha de Orlando em 2020.",
+                    "Acertou arremessos da vitória consecutivos em segundos finais nos Playoffs de 2024 contra os Lakers.",
+                    "Parceiro dinâmico de Nikola Jokic na conquista do título do Denver Nuggets."
+                ]
+            },
+            {
+                id: 72,
+                name: "Karl-Anthony Towns",
+                aliases: ["kat", "towns"],
+                team: "Minnesota Timberwolves / New York Knicks",
+                position: "Pivô / Ala-Pivô",
+                titles: "Rookie of the Year (2016), Campeão do Torneio de 3 Pontos (2022), 4x All-Star",
+                hints: [
+                    "1ª Escolha Geral do Draft de 2015 vindo da Universidade de Kentucky.",
+                    "Apresenta ascendência dominicana por parte de mãe e representa a seleção da República Dominicana.",
+                    "Usa a camisa #32, considerado por muitos um dos pivôs com melhor arremesso de 3 pontos da história.",
+                    "Anotou 62 pontos em um jogo em 2024 acertando 10 bolas de 3 pontos.",
+                    "Conhecido como 'KAT', trocado em grande negociação para o New York Knicks em 2024."
+                ]
+            },
+            {
+                id: 73,
+                name: "Rudy Gobert",
+                aliases: ["stifle tower", "gobert"],
+                team: "Utah Jazz / Minnesota Timberwolves",
+                position: "Pivô",
+                titles: "4x Defensive Player of the Year (Empatado com o Recorde Histórico), 3x All-Star",
+                hints: [
+                    "Nascido em Saint-Quentin na França, foi selecionado na 27ª posição do Draft de 2013.",
+                    "Usa a camisa #27 com envergadura colossal de 2,35 metros.",
+                    "Empatou o recorde histórico com Dikembe Mutombo e Ben Wallace com 4 prêmios de Melhor Defensor do Ano.",
+                    "Apelidado de 'The Stifle Tower' por sua capacidade protetora de garrafão.",
+                    "Pivô especialista em tocos e rebotes do Minnesota Timberwolves."
+                ]
+            },
+            {
+                id: 74,
+                name: "Jalen Brunson",
+                aliases: ["brunson", "jalen brunson"],
+                team: "Dallas Mavericks / New York Knicks",
+                position: "Armador",
+                titles: "2x Campeão da NCAA (Villanova), 1x All-Star, 2ª Equipe All-NBA (2024)",
+                hints: [
+                    "Filho do ex-jogador da NBA Rick Brunson, foi bicampeão universitário pela tradicional Villanova.",
+                    "Foi draftado apenas na 2ª rodada (33ª escolha) pelo Dallas Mavericks em 2018.",
+                    "Usa a camisa #11, mestre do footwork, pivoteamento e finalizações no garrafão mesmo sendo baixinho.",
+                    "Tornou-se um herói cult em Nova York marcando jogos de 40+ pontos frequentemente nos Playoffs.",
+                    "Líder incontestável e salvador da franquia do New York Knicks."
+                ]
+            },
+            {
+                id: 75,
+                name: "Tyrese Haliburton",
+                aliases: ["haliburton", "tyrese"],
+                team: "Sacramento Kings / Indiana Pacers",
+                position: "Armador",
+                titles: "2x All-Star, Líder em Assistências da NBA (2024), Ouro Olímpico (2024)",
+                hints: [
+                    "Jogou por Iowa State e caiu para a 12ª posição no Draft de 2020 por causa de sua mecânica de arremesso exótica.",
+                    "Usa a camisa #0, famoso por registrar jogos com 20 assistências e NENHUM erro (turnover).",
+                    "Liderou o Indiana Pacers até a final do primeiro In-Season Tournament (Copa da NBA) em 2023.",
+                    "Especialista em passes de transição eletrizantes e arremessos do logo.",
+                    "Novo maestro e rosto da franquia do Indiana Pacers."
+                ]
+            },
+            {
+                id: 76,
+                name: "De'Aaron Fox",
+                aliases: ["swipa", "fox"],
+                team: "Sacramento Kings",
+                position: "Armador",
+                titles: "Clutch Player of the Year (2023), 1x All-Star, Líder em Roubos de Bola",
+                hints: [
+                    "Jogou por Kentucky ao lado de Malik Monk e destruiu Lonzo Ball no torneio da NCAA.",
+                    "1ª escolha da era pós-Cousins no Sacramento Kings na 5ª posição em 2017.",
+                    "Usa a camisa #5 e é amplamente reconhecido como um dos jogadores mais velozes com a bola nos pés.",
+                    "Venceu o primeiro prêmio inaugural de 'Clutch Player of the Year' da história da NBA.",
+                    "Armador ultra rápido apelidado de 'Swipa' do Sacramento Kings."
+                ]
+            },
+            {
+                id: 77,
+                name: "Chet Holmgren",
+                aliases: ["chet", "holmgren"],
+                team: "Oklahoma City Thunder",
+                position: "Ala-Pivô / Pivô",
+                titles: "All-Rookie First Team (2024), Vice-Calouro do Ano",
+                hints: [
+                    "Destaque no basquete de ensino médio e de Gonzaga por sua estrutura física magra e habilidades completas.",
+                    "2ª Escolha Geral do Draft de 2022 pelo Oklahoma City Thunder.",
+                    "Perdeu toda a sua temporada inicial devido a uma lesão no pé sofrida em um jogo festivo no verão.",
+                    "Usa a camisa #7, capaz de proteger o aro com tocos e puxar o contra-ataque matando bolas de 3.",
+                    "Jovem pivô versátil e pilar defensivo do Oklahoma City Thunder."
+                ]
+            },
+            {
+                id: 78,
+                name: "Paolo Banchero",
+                aliases: ["paolo", "banchero"],
+                team: "Orlando Magic",
+                position: "Ala-Pivô",
+                titles: "Rookie of the Year (2023), 1ª Escolha Geral do Draft (2022), 1x All-Star",
+                hints: [
+                    "Com ascendência italiana e americana, brilhou na única temporada por Duke sob comando do Coach K.",
+                    "1ª Escolha Surpresa do Draft de 2022 quando muitos esperavam Jabari Smith Jr.",
+                    "Usa a camisa #5, possuindo um corpo maduro e pontuação física na área pintada.",
+                    "Conduziu o Orlando Magic de volta aos Playoffs em seu segundo ano na liga.",
+                    "Super estrela jovem e líder ofensivo do Orlando Magic."
+                ]
+            },
+            {
+                id: 79,
+                name: "Mikal Bridges",
+                aliases: ["mikal", "iron man"],
+                team: "Suns / Nets / Knicks",
+                position: "Ala",
+                titles: "2x Campeão da NCAA (Villanova), Homem de Ferro (Nenhum jogo perdido na carreira)",
+                hints: [
+                    "Foi bicampeão da NCAA por Villanova e draftado pelo Sixers antes de ser trocado no mesmo dia para o Suns.",
+                    "Usa a camisa #25 e detém a marca incrível de NUNCA ter perdido uma partida na carreira por lesão.",
+                    "Conhecido como 'Homem de Ferro' da NBA por sua durabilidade impressionante.",
+                    "Comemora suas bolas de 3 pontos apontando três dedos no ar e balançando a cabeça de lado.",
+                    "Defensor de elite e pontuador, reunido com seus parceiros de Villanova no New York Knicks."
+                ]
+            },
+            {
+                id: 80,
+                name: "Kristaps Porzingis",
+                aliases: ["unicórnio", "porzingis"],
+                team: "Knicks / Mavericks / Wizards / Celtics",
+                position: "Pivô / Ala-Pivô",
+                titles: "1x Campeão NBA (2024), 1x All-Star",
+                hints: [
+                    "Nascido na Letônia, jogou na Espanha pelo Sevilla antes de ser draftado em 2015 sob vaias da torcida de NY.",
+                    "Kevin Durant o apelidou de 'Unicórnio' devido à sua altura de 2,21m somada ao chute de longe.",
+                    "Usa a camisa #6 e #8, com grande capacidade de protetor de aro e arremessador de espaço.",
+                    "Teve grande atuação no Jogo 1 das Finais de 2024 voltando de lesão.",
+                    "Pivô letão campeão da NBA pelo Boston Celtics em 2024."
+                ]
+            },
+            {
+                id: 81,
+                name: "Al Horford",
+                aliases: ["horford", "al horford"],
+                team: "Hawks / Celtics / 76ers / Thunder",
+                position: "Pivô / Ala-Pivô",
+                titles: "1x Campeão NBA (2024), 5x All-Star, 2x Campeão da NCAA (Florida)",
+                hints: [
+                    "Nascido na República Dominicana, filho do ex-jogador da NBA Tito Horford.",
+                    "Foi bicampeão universitário pela Flórida ao lado de Joakim Noah e Corey Brewer.",
+                    "Usa a camisa #42, famoso por piscar ou fazer caras irônicas quando os adversários erram lances livres.",
+                    "Venceu seu primeiro anel da NBA em 2024 após jogar mais de 180 partidas de playoffs.",
+                    "Veterano respeitado e pivô campeão do Boston Celtics."
+                ]
+            },
+            {
+                id: 82,
+                name: "Jrue Holiday",
+                aliases: ["jrue", "holiday"],
+                team: "Sixers / Pelicans / Bucks / Celtics",
+                position: "Armador / Ala-Armador",
+                titles: "2x Campeão NBA (2021 Bucks, 2024 Celtics), 6x Time Defensivo, 2x Ouro Olímpico",
+                hints: [
+                    "Jogou por UCLA e é casado com Lauren Holiday, ex-estrela lendária da seleção americana de futebol.",
+                    "Possui dois irmãos que também jogaram na NBA (Justin e Aaron Holiday).",
+                    "Usa a camisa #4, considerado por estrelas como Damian Lillard e Paul George o defensor mais difícil que já enfrentaram.",
+                    "Peça chave em trocas que resultaram em títulos do Milwaukee Bucks (2021) e Boston Celtics (2024).",
+                    "Defensor de perímetro elite e bicampeão da NBA."
+                ]
+            },
+            {
+                id: 83,
+                name: "Aaron Gordon",
+                aliases: ["aaron gordon", "ag"],
+                team: "Orlando Magic / Denver Nuggets",
+                position: "Ala-Pivô",
+                titles: "1x Campeão NBA (2023), Protagonista do maior Dunk Contest de 2016",
+                hints: [
+                    "Jogou um ano por Arizona e foi a 4ª escolha do Draft de 2014 pelo Orlando Magic.",
+                    "Saltou por cima do mascote do Orlando Magic em posição sentado no lendário Dunk Contest de 2016.",
+                    "Usa a camisa #50 em referência à pontuação máxima das notas de enterradas.",
+                    "Reinventou seu jogo para tornar-se o defensor versátil e finalizador de pontes-aéreas ideal de Jokic.",
+                    "Ala-pivô campeão da NBA pelo Denver Nuggets."
+                ]
+            },
+            {
+                id: 84,
+                name: "Nikola Vucevic",
+                aliases: ["vucevic", "vuch"],
+                team: "Sixers / Magic / Chicago Bulls",
+                position: "Pivô",
+                titles: "2x All-Star, Máquina de Duplo-Duplo",
+                hints: [
+                    "Nascido na Suíça e criado em Montenegro, jogou basquete universitário por USC.",
+                    "Draftado pelo Sixers em 2011 e trocado na grande negociação que envolveu Dwight Howard.",
+                    "Usa a camisa #9, pivô tradicional com ótimo arremesso de meia e longa distância.",
+                    "Liderou o Orlando Magic por quase uma década como referência no garrafão.",
+                    "Pivô montenegrino e veterano do Chicago Bulls."
+                ]
+            },
+            {
+                id: 85,
+                name: "Fred VanVleet",
+                aliases: ["fvv", "vanvleet"],
+                team: "Toronto Raptors / Houston Rockets",
+                position: "Armador",
+                titles: "1x Campeão NBA (2019), 1x All-Star, História 'Bet On Yourself'",
+                hints: [
+                    "Liderou Wichita State na faculdade mas NÃO foi escolhido por nenhum time no Draft de 2016.",
+                    "Mantra famoso: 'Bet on yourself' (Aposte em você mesmo).",
+                    "Usa a camisa #23 e #5, acertando bolas de 3 cruciais nas Finais de 2019 logo após o nascimento de seu filho.",
+                    "Tornou-se o jogador não-draftado com o maior contrato da história da NBA ao assinar com Houston.",
+                    "Armador raçudo campeão pelos Raptors e atual líder do Houston Rockets."
+                ]
+            },
+            {
+                id: 86,
+                name: "CJ McCollum",
+                aliases: ["cj mccollum", "mccollum"],
+                team: "Portland Trail Blazers / New Orleans Pelicans",
+                position: "Ala-Armador / Armador",
+                titles: "Most Improved Player (2016), Presidente da NBPA (Associação de Jogadores)",
+                hints: [
+                    "Jogou pela modesta faculdade de Lehigh e eliminou a gigante Duke no torneio da NCAA de 2012.",
+                    "Usa a camisa #3 e é formado em Jornalismo, entrevistando frequentemente colegas de liga.",
+                    "Formou uma das duplas de armadores mais letais no ataque ao lado de Damian Lillard por anos.",
+                    "Arremessador sedoso de meia distância e drible ritmado.",
+                    "Pontuador veterano e líder do New Orleans Pelicans."
+                ]
+            },
+            {
+                id: 87,
+                name: "Bradley Beal",
+                aliases: ["beal", "bradley beal"],
+                team: "Washington Wizards / Phoenix Suns",
+                position: "Ala-Armador",
+                titles: "3x All-Star, Temporada de 31.3 pontos de média (2021)",
+                hints: [
+                    "Jogou pela Universidade da Flórida e foi a 3ª escolha do Draft de 2012 pelo Washington Wizards.",
+                    "Usa a camisa #3, formando com John Wall a dupla apelidada de 'House of Guards'.",
+                    "Superou a marca de 30 pontos de média por jogo em duas temporadas consecutivas.",
+                    "Possuía cláusula de não-troca (no-trade clause) raríssima em seu contrato.",
+                    "Cestinha nato trocado para o Phoenix Suns em 2023."
+                ]
+            },
+            {
+                id: 88,
+                name: "Marcus Smart",
+                aliases: ["smart", "marcus smart"],
+                team: "Boston Celtics / Memphis Grizzlies",
+                position: "Armador / Ala-Armador",
+                titles: "Defensive Player of the Year (2022 - Primeiro Armador desde Gary Payton), 3x All-Defensive",
+                hints: [
+                    "Jogou 2 anos por Oklahoma State e foi selecionado pela 6ª escolha do Draft de 2014.",
+                    "Usa a camisa #36, famoso por cavar faltas de ataque e mergulhar no chão por bolas perdidas.",
+                    "Torneou-se em 2022 o primeiro armador puro a vencer o prêmio de Defensor do Ano em quase 30 anos.",
+                    "Coração e alma da defesa do Boston Celtics por quase uma década.",
+                    "Armador especialista defensivo atualmente no Memphis Grizzlies."
+                ]
+            },
+            {
+                id: 89,
+                name: "Kyle Lowry",
+                aliases: ["lowry", "kyle lowry"],
+                team: "Grizzlies / Rockets / Raptors / Heat / 76ers",
+                position: "Armador",
+                titles: "1x Campeão NBA (2019), 6x All-Star, Campeão Olímpico (2016)",
+                hints: [
+                    "Nascido em Filadélfia, jogou por Villanova antes de ser a 24ª escolha do Draft de 2006.",
+                    "Usa a camisa #7, mestre em cavar faltas de ataque (charges) e liderar o ritmo em quadra.",
+                    "Formou com DeMar DeRozan a era mais vitoriosa da história do Toronto Raptors.",
+                    "Conhecido por sua força no tronco inferior e liderança vocal.",
+                    "Armador campeão em 2019 pelos Raptors e atuando pelo time de sua cidade (76ers)."
+                ]
+            },
+            {
+                id: 90,
+                name: "Brook Lopez",
+                aliases: ["brook lopez", "splash mountain"],
+                team: "Nets / Lakers / Milwaukee Bucks",
+                position: "Pivô",
+                titles: "1x Campeão NBA (2021), 1x All-Star, Maior Pontuador da História do Brooklyn Nets",
+                hints: [
+                    "Possui um irmão gêmeo idêntico (Robin Lopez) com quem jogou na faculdade de Stanford.",
+                    "Usa a camisa #11 e começou a carreira como pivô de garrafão tradicional antes de virar arremessador de 3.",
+                    "Apelidado de 'Splash Mountain' por combinar alto volume de bolas de 3 com tocos defensivos.",
+                    "Maior pontuador de todos os tempos do Brooklyn/New Jersey Nets.",
+                    "Pivô campeão da NBA em 2021 ao lado de Giannis no Milwaukee Bucks."
+                ]
+            },
+            {
+                id: 91,
+                name: "Yao Ming",
+                aliases: ["yao", "yao ming"],
+                team: "Houston Rockets",
+                position: "Pivô",
+                titles: "8x All-Star, 1ª Escolha Geral do Draft (2002), Hall of Fame",
+                hints: [
+                    "Nascido em Xangai na China, jogou pelo Shanghai Sharks antes de ir para a NBA.",
+                    "Possui incríveis 2,29m de altura e protagonizou a abertura global do mercado asiático para a NBA.",
+                    "Usa a camisa #11, com uma das mecânicas de lance livre e chute de meia distância mais suaves da liga.",
+                    "Membro de um famoso meme da internet com sua risada gargalhada clássica.",
+                    "Gigante chinês e lendário pivô do Houston Rockets junto de Tracy McGrady."
+                ]
+            },
+            {
+                id: 92,
+                name: "Dikembe Mutombo",
+                aliases: ["mutombo", "dikembe"],
+                team: "Nuggets / Hawks / Sixers / Nets / Knicks / Rockets",
+                position: "Pivô",
+                titles: "4x Defensive Player of the Year, 8x All-Star, Hall of Fame",
+                hints: [
+                    "Nascido na República Democrática do Congo, foi estudar na Geogertown University para ser médico antes do basquete.",
+                    "Usa a camisa #55 e tinha uma envergadura monumental com tocos devastadores.",
+                    "Famoso pelo gesto de balançar o dedo indicador dizendo 'No, no, no, not in my house' após dar um toco.",
+                    "Deitou no chão chorando de emoção quando o Nuggets 8º colocado eliminou o Sonics 1º em 1994.",
+                    "Lendário protetor de aro e gigante humanitário da NBA."
+                ]
+            },
+            {
+                id: 93,
+                name: "Robert Horry",
+                aliases: ["big shot bob", "horry"],
+                team: "Rockets / Suns / Lakers / Spurs",
+                position: "Ala-Pivô",
+                titles: "7x Campeão NBA (Em 3 franquias diferentes - Maior vencedor fora dos Celtics dos anos 60)",
+                hints: [
+                    "Jogou por Alabama e foi draftado na 11ª escolha em 1992 pelo Houston Rockets.",
+                    "Usa as camisas #25 e #5, famoso por NUNCA ter sido All-Star mas ter vencido 7 anéis de campeão.",
+                    "Apelidado de 'Big Shot Bob' por acertar bolas de 3 decisivas no último segundo em Playoffs ano após ano.",
+                    "Acertou a famosa bola de 3 no estouro contra o Sacramento Kings nas Finais do Oeste de 2002 pelos Lakers.",
+                    "O maior vencedor moderno de anéis da NBA jogando por Rockets, Lakers e Spurs."
+                ]
+            },
+            {
+                id: 94,
+                name: "Metta Sandiford-Artest",
+                aliases: ["ron artest", "metta world peace", "artest"],
+                team: "Bulls / Pacers / Kings / Rockets / Lakers / Knicks",
+                position: "Ala",
+                titles: "1x Campeão NBA (2010), Defensive Player of the Year (2004), 1x All-Star",
+                hints: [
+                    "Nascido no Queens em Nova York, jogou por St. John's e mudou legalmente de nome duas vezes.",
+                    "Anteriormente conhecido como Ron Artest antes de mudar para 'Metta World Peace'.",
+                    "Envolveu-se na famosa briga generalizada nas arquibancadas com torcedores em 2004 em Detroit ('Malice at the Palace').",
+                    "Usa a camisa #37 e #15, defensor físico com força de linha de futebol americano.",
+                    "Acertou a bola de 3 pontos decisiva no jogo 7 das Finais de 2010 pelo Los Angeles Lakers."
+                ]
+            },
+            {
+                id: 95,
+                name: "Isaiah Thomas",
+                aliases: ["it4", "isaiah thomas", "king in the fourth"],
+                team: "Kings / Suns / Celtics / Cavs / Lakers / Wizards",
+                position: "Armador",
+                titles: "2x All-Star, 2ª Equipe All-NBA (2017), Temporada de 28.9 pts por jogo",
+                hints: [
+                    "Seu pai perdeu uma aposta no jogo das Finais de 1989 e teve que colocar seu nome em homenagem a Isiah Thomas dos Pistons.",
+                    "ÚLTIMA escolha do Draft de 2011 (60ª posição) vindo de Washington.",
+                    "Com apenas 1,75m de altura, tornou-se um dos menores jogadores da história a dominar a pontuação da liga.",
+                    "Apelidado de 'King in the Fourth' por suas pontuações insanas no 4º quarto pelo Boston Celtics.",
+                    "Guerreiro baixinho que jogou um jogo de playoff um dia após o falecimento trágico de sua irmã."
+                ]
+            },
+            {
+                id: 96,
+                name: "Penny Hardaway",
+                aliases: ["penny", "penny hardaway"],
+                team: "Orlando Magic / Suns / Knicks / Heat",
+                position: "Armador / Ala-Armador",
+                titles: "4x All-Star, 2x Primeira Equipe All-NBA, Parceria icônica com Shaq",
+                hints: [
+                    "Jogou por Memphis e teve seus direitos de draft trocados por Chris Webber em 1993.",
+                    "Usa a camisa #1 e com 2,01m tinha comparações diretas de estilo com Magic Johnson.",
+                    "Protagonizou comerciais lendários de tênis Nike nos anos 90 com o boneco 'Lil Penny' (voz de Chris Rock).",
+                    "Liderou o jovem Orlando Magic até as Finais da NBA de 1995 derrotando os Bulls no caminho.",
+                    "Armador talentosíssimo dos anos 90 cuja carreira sofreu com lesões precoces no joelho."
+                ]
+            },
+            {
+                id: 97,
+                name: "Grant Hill",
+                aliases: ["grant hill", "hill"],
+                team: "Pistons / Magic / Suns / Clippers",
+                position: "Ala",
+                titles: "Co-Rookie of the Year (1995), 7x All-Star, Hall of Fame",
+                hints: [
+                    "Liderou a Universidade de Duke a dois títulos nacionais consecutivos da NCAA em 1991 e 1992.",
+                    "Usa a camisa #33, considerado nos anos 90 o herdeiro natural do trono de Michael Jordan na NBA.",
+                    "Registrava triplos-duplos com facilidade incrível antes de graves lesões no tornozelo no Orlando Magic.",
+                    "Reinventou-se no Phoenix Suns como veterano e arremessador eficiente.",
+                    "Superastro do Detroit Pistons nos anos 90 e atual co-proprietário de franquia."
+                ]
+            },
+            {
+                id: 98,
+                name: "Gilbert Arenas",
+                aliases: ["agent zero", "arenas"],
+                team: "Warriors / Washington Wizards / Magic / Grizzlies",
+                position: "Armador",
+                titles: "3x All-Star, Most Improved Player (2003), 3x All-NBA",
+                hints: [
+                    "Jogou por Arizona e foi draftado na 2ª rodada em 2001, usando o número 0 para provar que críticos erravam ao dizer que jogaria 'zero minutos'.",
+                    "Usa a camisa #0, ganhando o lendário apelido de 'Agent Zero'.",
+                    "Comemorava arremessos da vitória virando de costas para a cesta antes mesmo da bola passar pelo aro.",
+                    "Marcou 60 pontos em um jogo contra o Los Angeles Lakers em 2006.",
+                    "Pontuador imparável do Washington Wizards nos anos 2000."
+                ]
+            },
+            {
+                id: 99,
+                name: "Shawn Kemp",
+                aliases: ["reign man", "kemp"],
+                team: "Seattle SuperSonics / Cavs / Trail Blazers / Magic",
+                position: "Ala-Pivô",
+                titles: "6x All-Star, 3x Segunda Equipe All-NBA, Finais de 1996",
+                hints: [
+                    "Entrou direto para a NBA sem jogar basquete universitário, draftado em 1989 pelo Seattle SuperSonics.",
+                    "Usa a camisa #40, famoso por enterradas humilhantes e a celebração de apontar o dedo para o defensor caído no chão.",
+                    "Apelidado de 'Reign Man' devido ao clima chuvoso de Seattle e seu domínio voador.",
+                    "Formou uma dupla eletrizante de contra-ataque com o armador Gary Payton.",
+                    "Ala-pivô mais explosivo e espetacular dos anos 90 no Seattle SuperSonics."
+                ]
+            },
+            {
+                id: 100,
+                name: "Gary Payton",
+                aliases: ["the glove", "payton"],
+                team: "Seattle SuperSonics / Bucks / Lakers / Celtics / Heat",
+                position: "Armador",
+                titles: "1x Campeão NBA (2006), Defensive Player of the Year (1996), 9x All-Star",
+                hints: [
+                    "Jogou por Oregon State e foi a 2ª escolha do Draft de 1990.",
+                    "Único armador puro na história a vencer o prêmio de Defensor do Ano da NBA antes de Marcus Smart em 2022.",
+                    "Usa a camisa #20, conhecido pelo trash talk incansável que tirava os adversários do sério.",
+                    "Apelidado de 'The Glove' (A Luva) porque 'agarrava os armadores adversários como uma luva'.",
+                    "Armador lendário do Seattle SuperSonics e campeão em 2006 com o Miami Heat."
+                ]
+            }
+        ];
+
+        // Game State Variables
+        let currentRoundPlayer = null;
+        let currentHintIndex = 0; // 0 to 4
+        let score = 0;
+        let streak = 0;
+        let roundNumber = 1;
+        let playedPlayerIds = [];
+        let discoveredPlayerIds = [];
+        let isRoundActive = false;
+
+        // Points matrix for each hint level
+        const HINT_POINTS = [500, 400, 300, 200, 100];
+
+        // Web Audio API Sound Effects (Zero External Files)
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'success') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.3); // C6
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'hint') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now); // A4
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+            } catch (e) {
+                // Audio context not allowed or failed
+            }
+        }
+
+        // Load data on start
+        window.onload = function() {
+            loadLocalStorage();
+            setupSearchAutocomplete();
+            startNewRound();
+            setupKeyboardListeners();
+            setupResizeCanvas();
+        };
+
+        function loadLocalStorage() {
+            const savedScore = localStorage.getItem('nba_quiz_score');
+            const savedStreak = localStorage.getItem('nba_quiz_streak');
+            const savedDiscovered = localStorage.getItem('nba_quiz_discovered');
+
+            if (savedScore !== null) score = parseInt(savedScore, 10);
+            if (savedStreak !== null) streak = parseInt(savedStreak, 10);
+            if (savedDiscovered !== null) {
+                try {
+                    discoveredPlayerIds = JSON.parse(savedDiscovered);
+                } catch(e) {
+                    discoveredPlayerIds = [];
+                }
+            }
+
+            updateHeaderStats();
+        }
+
+        function saveLocalStorage() {
+            localStorage.setItem('nba_quiz_score', score.toString());
+            localStorage.setItem('nba_quiz_streak', streak.toString());
+            localStorage.setItem('nba_quiz_discovered', JSON.stringify(discoveredPlayerIds));
+        }
+
+        function updateHeaderStats() {
+            document.getElementById('score-display').textContent = score.toLocaleString('pt-BR');
+            document.getElementById('streak-display').textContent = streak;
+            document.getElementById('collection-badge').textContent = `${discoveredPlayerIds.length}/100`;
+            document.getElementById('collection-count').textContent = discoveredPlayerIds.length;
+        }
+
+        function startNewRound() {
+            isRoundActive = true;
+            currentHintIndex = 0;
+
+            // Pick a player that hasn't been played in recent session if possible
+            let availablePlayers = PLAYERS_DATABASE.filter(p => !playedPlayerIds.includes(p.id));
+            if (availablePlayers.length === 0) {
+                playedPlayerIds = [];
+                availablePlayers = [...PLAYERS_DATABASE];
+            }
+
+            const randomIndex = Math.floor(Math.random() * availablePlayers.length);
+            currentRoundPlayer = availablePlayers[randomIndex];
+            playedPlayerIds.push(currentRoundPlayer.id);
+
+            // Update UI elements
+            document.getElementById('round-number').textContent = roundNumber;
+            document.getElementById('player-search-input').value = '';
+            document.getElementById('autocomplete-list').classList.add('hidden');
+            document.getElementById('clear-input-btn').classList.add('hidden');
+
+            renderHints();
+            updateStepperUI();
+        }
+
+        function renderHints() {
+            const container = document.getElementById('hints-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < 5; i++) {
+                const isUnlocked = i <= currentHintIndex;
+                const hintText = currentRoundPlayer.hints[i];
+
+                const card = document.createElement('div');
+                card.className = `glass-card rounded-2xl p-4 sm:p-5 border transition-all duration-300 relative overflow-hidden ${
+                    isUnlocked 
+                        ? 'border-slate-700/80 bg-slate-900/80 shadow-md' 
+                        : 'border-slate-800/40 bg-slate-950/40 opacity-60'
+                }`;
+
+                let difficultyLabel = '';
+                let difficultyColor = '';
+                switch (i) {
+                    case 0: difficultyLabel = 'Dica 1 • Origem / Draft'; difficultyColor = 'text-rose-400 bg-rose-500/10 border-rose-500/20'; break;
+                    case 1: difficultyLabel = 'Dica 2 • Camisa & Posição'; difficultyColor = 'text-amber-400 bg-amber-500/10 border-amber-500/20'; break;
+                    case 2: difficultyLabel = 'Dica 3 • Títulos & Marcas'; difficultyColor = 'text-amber-300 bg-amber-400/10 border-amber-400/20'; break;
+                    case 3: difficultyLabel = 'Dica 4 • Apelido & Estilo'; difficultyColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'; break;
+                    case 4: difficultyLabel = 'Dica 5 • Times & Revelação'; difficultyColor = 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20'; break;
+                }
+
+                if (isUnlocked) {
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${difficultyColor}">
+                                ${difficultyLabel}
+                            </span>
+                            <span class="text-xs font-bold text-slate-400">
+                                <i class="fa-solid fa-lock-open text-emerald-400 mr-1"></i> Liberada
+                            </span>
+                        </div>
+                        <p class="text-sm sm:text-base font-semibold text-slate-100 leading-relaxed pt-1">
+                            ${hintText}
+                        </p>
+                    `;
+                } else {
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500 text-xs font-bold">
+                                    <i class="fa-solid fa-lock"></i>
+                                </div>
+                                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Dica ${i + 1} bloqueada
+                                </span>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-600">Dica seguinte</span>
+                        </div>
+                    `;
+                }
+
+                container.appendChild(card);
+            }
+        }
+
+        function updateStepperUI() {
+            document.getElementById('current-points-value').textContent = `${HINT_POINTS[currentHintIndex]} pts`;
+            document.getElementById('hints-unlocked-text').textContent = `${currentHintIndex + 1} de 5 Dicas Liberadas`;
+
+            for (let i = 1; i <= 5; i++) {
+                const stepElem = document.getElementById(`step-${i}`);
+                if (i - 1 <= currentHintIndex) {
+                    stepElem.className = 'h-2.5 rounded-full bg-nba-orange transition-all duration-500 shadow-sm shadow-nba-orange/50';
+                } else {
+                    stepElem.className = 'h-2.5 rounded-full bg-slate-800 transition-all duration-500';
+                }
+            }
+
+            const nextBtn = document.getElementById('next-hint-btn');
+            if (currentHintIndex >= 4) {
+                nextBtn.disabled = true;
+                nextBtn.className = 'bg-slate-900 text-slate-600 border border-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm cursor-not-allowed';
+            } else {
+                nextBtn.disabled = false;
+                nextBtn.className = 'bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2';
+            }
+        }
+
+        function normalizeString(str) {
+            return str
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9 ]/g, "");
+        }
+
+        function setupSearchAutocomplete() {
+            const input = document.getElementById('player-search-input');
+            const list = document.getElementById('autocomplete-list');
+            const clearBtn = document.getElementById('clear-input-btn');
+
+            input.addEventListener('input', function() {
+                const query = normalizeString(this.value.trim());
+
+                if (query.length > 0) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
+                }
+
+                if (query.length < 1) {
+                    list.classList.add('hidden');
+                    return;
+                }
+
+                const matches = PLAYERS_DATABASE.filter(player => {
+                    const normName = normalizeString(player.name);
+                    const normTeam = normalizeString(player.team);
+                    const aliasMatches = player.aliases.some(alias => normalizeString(alias).includes(query));
+                    return normName.includes(query) || normTeam.includes(query) || aliasMatches;
+                }).slice(0, 6);
+
+                if (matches.length === 0) {
+                    list.innerHTML = `
+                        <div class="px-4 py-3 text-xs text-slate-500 font-medium italic">
+                            Nenhum jogador encontrado com "${this.value}"
+                        </div>
+                    `;
+                } else {
+                    list.innerHTML = matches.map(player => `
+                        <div 
+                            onclick="selectPlayerFromAutocomplete('${player.name.replace(/'/g, "\\'")}')" 
+                            class="px-4 py-3 hover:bg-slate-800/90 cursor-pointer flex items-center justify-between transition border-b border-slate-800/40 last:border-0"
+                        >
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-nba-orange font-bold text-xs">
+                                    <i class="fa-solid fa-basketball"></i>
+                                </div>
+                                <div>
+                                    <span class="text-sm font-bold text-slate-100 block">${player.name}</span>
+                                    <span class="text-xs text-slate-400 font-medium">${player.team} • ${player.position}</span>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-angle-right text-slate-600 text-xs"></i>
+                        </div>
+                    `).join('');
+                }
+
+                list.classList.remove('hidden');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !list.contains(e.target)) {
+                    list.classList.add('hidden');
+                }
+            });
+        }
+
+        function clearSearchInput() {
+            const input = document.getElementById('player-search-input');
+            input.value = '';
+            document.getElementById('autocomplete-list').classList.add('hidden');
+            document.getElementById('clear-input-btn').classList.add('hidden');
+            input.focus();
+        }
+
+        function selectPlayerFromAutocomplete(playerName) {
+            document.getElementById('player-search-input').value = playerName;
+            document.getElementById('autocomplete-list').classList.add('hidden');
+            submitGuess();
+        }
+
+        function setupKeyboardListeners() {
+            document.getElementById('player-search-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    submitGuess();
+                }
+            });
+        }
+
+        function submitGuess() {
+            if (!isRoundActive) return;
+
+            const input = document.getElementById('player-search-input');
+            const userGuess = normalizeString(input.value.trim());
+
+            if (!userGuess) {
+                showToast("Digite o nome do jogador antes de confirmar!");
+                return;
+            }
+
+            const normTargetName = normalizeString(currentRoundPlayer.name);
+            const isMatch = normTargetName === userGuess || 
+                currentRoundPlayer.aliases.some(alias => normalizeString(alias) === userGuess);
+
+            if (isMatch) {
+                // Correct Answer!
+                handleWin();
+            } else {
+                // Incorrect Answer
+                playSound('error');
+                input.classList.add('shake-err');
+                setTimeout(() => input.classList.remove('shake-err'), 500);
+
+                if (currentHintIndex < 4) {
+                    currentHintIndex++;
+                    playSound('hint');
+                    renderHints();
+                    updateStepperUI();
+                    showToast("Incorreto! Próxima dica liberada.", "error");
+                } else {
+                    // Out of hints & failed
+                    handleLoss();
+                }
+            }
+        }
+
+        function revealNextHint() {
+            if (!isRoundActive || currentHintIndex >= 4) return;
+
+            currentHintIndex++;
+            playSound('hint');
+            renderHints();
+            updateStepperUI();
+        }
+
+        function giveUpRound() {
+            if (!isRoundActive) return;
+            handleLoss(true);
+        }
+
+        function handleWin() {
+            isRoundActive = false;
+            playSound('success');
+            triggerConfetti();
+
+            const pointsEarned = HINT_POINTS[currentHintIndex];
+            score += pointsEarned;
+            streak++;
+
+            if (!discoveredPlayerIds.includes(currentRoundPlayer.id)) {
+                discoveredPlayerIds.push(currentRoundPlayer.id);
+            }
+
+            saveLocalStorage();
+            updateHeaderStats();
+
+            // Populate Victory Modal
+            const badge = document.getElementById('modal-badge-container');
+            badge.className = "w-16 h-16 rounded-full flex items-center justify-center text-2xl mb-3 shadow-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            badge.innerHTML = '<i class="fa-solid fa-trophy"></i>';
+
+            document.getElementById('modal-title').textContent = "VOCÊ ACERTOU!";
+            document.getElementById('modal-title').className = "text-2xl font-black text-emerald-400 mb-1";
+            document.getElementById('modal-subtitle').textContent = `Incrível! Você adivinhou na ${currentHintIndex + 1}ª dica.`;
+
+            fillModalPlayerDetails(pointsEarned);
+            document.getElementById('result-modal').classList.remove('hidden');
+        }
+
+        function handleLoss(gaveUp = false) {
+            isRoundActive = false;
+            playSound('error');
+
+            streak = 0; // Reset streak
+            saveLocalStorage();
+            updateHeaderStats();
+
+            // Populate Loss Modal
+            const badge = document.getElementById('modal-badge-container');
+            badge.className = "w-16 h-16 rounded-full flex items-center justify-center text-2xl mb-3 shadow-lg bg-rose-500/20 text-rose-400 border border-rose-500/30";
+            badge.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+
+            document.getElementById('modal-title').textContent = gaveUp ? "VOCÊ DESISTIU!" : "FIM DE JOGO!";
+            document.getElementById('modal-title').className = "text-2xl font-black text-rose-400 mb-1";
+            document.getElementById('modal-subtitle').textContent = gaveUp 
+                ? "Você preferiu revelar o jogador." 
+                : "Suas 5 dicas acabaram sem o chute correto.";
+
+            fillModalPlayerDetails(0);
+            document.getElementById('result-modal').classList.remove('hidden');
+        }
+
+        function fillModalPlayerDetails(points) {
+            document.getElementById('player-reveal-name').textContent = currentRoundPlayer.name;
+            document.getElementById('player-reveal-team').textContent = currentRoundPlayer.team;
+            document.getElementById('player-reveal-position').textContent = currentRoundPlayer.position;
+            document.getElementById('player-reveal-points').textContent = `+${points} pts`;
+            document.getElementById('player-reveal-titles').textContent = currentRoundPlayer.titles;
+        }
+
+        function startNextRound() {
+            document.getElementById('result-modal').classList.add('hidden');
+            roundNumber++;
+            startNewRound();
+        }
+
+        function resetToHome() {
+            if (confirm("Deseja iniciar um novo jogo do zero? (Sua sequência será mantida)")) {
+                roundNumber = 1;
+                startNewRound();
+            }
+        }
+
+        function toggleCollectionModal() {
+            const modal = document.getElementById('collection-modal');
+            if (modal.classList.contains('hidden')) {
+                renderCollectionGrid();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function renderCollectionGrid(filterQuery = "") {
+            const grid = document.getElementById('collection-grid');
+            const normFilter = normalizeString(filterQuery);
+
+            grid.innerHTML = PLAYERS_DATABASE.map(player => {
+                const isDiscovered = discoveredPlayerIds.includes(player.id);
+                const normName = normalizeString(player.name);
+                const normTeam = normalizeString(player.team);
+
+                if (normFilter && !normName.includes(normFilter) && !normTeam.includes(normFilter)) {
+                    return '';
+                }
+
+                if (isDiscovered) {
+                    return `
+                        <div class="glass-card rounded-xl p-3 border border-emerald-500/30 bg-emerald-950/20 flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-nba-orange to-emerald-400 flex items-center justify-center text-slate-950 font-black text-xs shrink-0 shadow">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <h5 class="text-sm font-bold text-amber-400 truncate">${player.name}</h5>
+                                <p class="text-[11px] text-slate-300 truncate">${player.team}</p>
+                                <span class="text-[10px] text-emerald-400 font-bold block mt-1">Descoberto</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="glass-card rounded-xl p-3 border border-slate-800 bg-slate-950/50 flex items-start gap-3 opacity-60">
+                            <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500 text-xs shrink-0">
+                                <i class="fa-solid fa-lock"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <h5 class="text-sm font-bold text-slate-400 truncate">???? ????</h5>
+                                <p class="text-[11px] text-slate-500 truncate">Jogador Bloqueado</p>
+                                <span class="text-[10px] text-slate-600 font-semibold block mt-1">#${player.id}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        function filterCollection() {
+            const query = document.getElementById('collection-search').value;
+            renderCollectionGrid(query);
+        }
+
+        function showToast(msg, type = "info") {
+            const existingToast = document.getElementById('quiz-toast');
+            if (existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'quiz-toast';
+            toast.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl text-xs font-bold shadow-2xl transition-all duration-300 border flex items-center gap-2 ${
+                type === 'error' 
+                    ? 'bg-rose-950/90 text-rose-200 border-rose-800' 
+                    : 'bg-slate-900/90 text-amber-400 border-amber-500/40'
+            }`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info'}"></i> ${msg}`;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast) toast.remove();
+            }, 2500);
+        }
+
+        // Custom High-Performance Canvas Confetti Engine
+        let confettiAnimationId = null;
+        const confettiCanvas = document.getElementById('canvas-confetti');
+        const ctx = confettiCanvas.getContext('2d');
+        let particles = [];
+
+        function setupResizeCanvas() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+            window.addEventListener('resize', () => {
+                confettiCanvas.width = window.innerWidth;
+                confettiCanvas.height = window.innerHeight;
+            });
+        }
+
+        function triggerConfetti() {
+            particles = [];
+            const colors = ['#ff6b00', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+            for (let i = 0; i < 120; i++) {
+                particles.push({
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                    vx: (Math.random() - 0.5) * 18,
+                    vy: (Math.random() - 0.7) * 18,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rotation: Math.random() * 360,
+                    rSpeed: (Math.random() - 0.5) * 10,
+                    gravity: 0.35,
+                    opacity: 1
+                });
+            }
+
+            if (confettiAnimationId) cancelAnimationFrame(confettiAnimationId);
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.rotation += p.rSpeed;
+                p.opacity -= 0.008;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.globalAlpha = Math.max(0, p.opacity);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+
+                if (p.opacity <= 0 || p.y > window.innerHeight) {
+                    particles.splice(index, 1);
+                }
+            });
+
+            if (particles.length > 0) {
+                confettiAnimationId = requestAnimationFrame(animateConfetti);
+            } else {
+                ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            }
+        }
+    </script>
+</body>
+</html>
